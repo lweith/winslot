@@ -1,0 +1,30 @@
+winslot (0.2.1) noble; urgency=medium
+
+  * "host console" and winslot-console.service: break-glass root password,
+    SSH host key and VM host CA fingerprints on the console login prompt,
+    redrawn at every boot.
+  * The package installs /root/README.
+  * Golden image: STIG-style sign-in (no tiles, notice, 15-minute idle
+    lock), TMRA theme for new users, consumer apps and features removed.
+
+ -- TMRA tech committee <tech@w8hhf.org>  Mon, 12 Oct 2026 12:30:00 -0400
+
+winslot (0.2.0) noble; urgency=medium
+
+  * License register: "license scan" (and a six-hourly timer) records
+    activated slots with their key, recovered from the VM and confirmed by
+    Windows; "license record/list/show/print/release".
+  * One-page PDF sheet per licensed slot with a QR code of its record;
+    "vm restore" redefines a slot from that record.
+  * "vm delete" for slots that were never activated; licensed slots are
+    refused.
+  * "vm update"; virtio video; virt-manager titles start with the slot name.
+  * Golden image: windows_exporter license collector.
+
+ -- TMRA tech committee <tech@w8hhf.org>  Sun, 11 Oct 2026 22:00:00 -0400
+
+winslot (0.1.0) noble; urgency=medium
+
+  * Initial package.
+
+ -- TMRA tech committee <tech@w8hhf.org>  Sun, 11 Oct 2026 13:12:52 -0400

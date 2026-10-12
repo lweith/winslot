@@ -1,0 +1,11 @@
+[Unit]
+Description=winslot: scan slots for Windows activation every six hours
+
+[Timer]
+OnBootSec=30min
+OnUnitActiveSec=6h
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

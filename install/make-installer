@@ -1,0 +1,57 @@
+#!/bin/bash
+# Build the winslot server installer ISO for one site. Write it to a USB stick
+# (dd), boot the server from it, walk away:
+#   stage 1  Ubuntu autoinstall (no prompts): disk, network, admin user, SSH
+#   stage 2  install/bootstrap on first boot: packages, ZFS, VM network, OSPF,
+#            winslot, golden Windows image
+#
+#   install/make-installer SITE WINDOWS_ISO PAYLOAD_DIR OUTPUT.iso [HOST_CA_BACKUP.tar.age]
+set -euo pipefail
+SITE=${1:?usage: make-installer SITE WINDOWS_ISO PAYLOAD_DIR OUTPUT.iso [host-ca.tar.age]}
+WIN_ISO=${2:?}; PAYLOAD=${3:?}; OUT=${4:?}; CA_BACKUP=${5:-}
+REPO=$(cd "$(dirname "$0")/.." && pwd)
+source "$REPO/sites/$SITE.conf"
+
+# Ubuntu Server, pinned. SHA256SUMS is signed by the Ubuntu CD image key
+# 8439 38DF 228D 22F7 B374 2BC0 D94A A3F0 EFE2 1092.
+UBUNTU_URL=https://releases.ubuntu.com/24.04/ubuntu-24.04.5-live-server-amd64.iso
+UBUNTU_SHA256=97f3d7ffb032c3eb3b23d2c8be9cc76e60c2c1f2c0146ba5ba9fe01cafae0fd8
+CACHE=/var/cache/winslot/ubuntu
+UBUNTU_ISO=$CACHE/$(basename "$UBUNTU_URL")
+mkdir -p "$CACHE"
+[ -e "$UBUNTU_ISO" ] || curl -fL --retry 3 -o "$UBUNTU_ISO" "$UBUNTU_URL"
+echo "$UBUNTU_SHA256  $UBUNTU_ISO" | sha256sum -c -
+
+STAGE=$(mktemp -d); trap 'rm -rf "$STAGE"' EXIT
+echo "== stage installer contents in $STAGE"
+mkdir -p "$STAGE/winslot/media/payload" "$STAGE/winslot/secrets"
+
+# Autoinstall config from the site file. Admin SSH keys become a YAML list.
+export HOSTNAME ADMIN_USER TIMEZONE NIC ADDRESS GATEWAY DNS
+export SSH_KEYS_YAML=$(grep -v '^#' "$REPO/sites/$SITE.admin-keys" | grep . | sed 's/^/          - "/; s/$/"/')
+envsubst '$HOSTNAME $ADMIN_USER $TIMEZONE $NIC $ADDRESS $GATEWAY $DNS $SSH_KEYS_YAML' \
+  < "$REPO/install/user-data.in" > "$STAGE/autoinstall.yaml"     # installer reads /autoinstall.yaml from the media
+
+# The repository (with its git history) and which site this stick is for.
+rsync -a --exclude /build "$REPO/" "$STAGE/winslot/repo/"
+echo "$SITE" > "$STAGE/winslot/repo/install/SITE"
+cp "$WIN_ISO" "$STAGE/winslot/media/"
+cp "$PAYLOAD"/* "$STAGE/winslot/media/payload/"
+[ -z "$CA_BACKUP" ] || cp "$CA_BACKUP" "$STAGE/winslot/secrets/host-ca.tar.age"
+
+# Boot straight into autoinstall (no "continue?" prompt): add the keyword to
+# the first GRUB entry. The config itself is /autoinstall.yaml on the media.
+xorriso -osirrox on -indev "$UBUNTU_ISO" -extract /boot/grub/grub.cfg "$STAGE/grub.cfg" 2>/dev/null
+chmod u+w "$STAGE/grub.cfg"
+sed -i -e '0,/---/s#---#autoinstall ---#' -e 's/^set timeout=.*/set timeout=5/' "$STAGE/grub.cfg"
+grep -m1 'autoinstall' "$STAGE/grub.cfg"
+
+echo "== write $OUT"
+rm -f "$OUT"                                      # xorriso will not overwrite an existing image
+xorriso -indev "$UBUNTU_ISO" -outdev "$OUT" -compliance iso_9660_level=3 \
+  -map "$STAGE/autoinstall.yaml" /autoinstall.yaml \
+  -map "$STAGE/winslot" /winslot \
+  -map "$STAGE/grub.cfg" /boot/grub/grub.cfg \
+  -boot_image any replay 2>&1 | grep -vE "UPDATE :"
+ls -lh "$OUT"
+echo "Write to a stick: sudo dd if=$OUT of=/dev/sdX bs=4M oflag=direct status=progress"

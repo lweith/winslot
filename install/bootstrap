@@ -1,0 +1,176 @@
+#!/bin/bash
+# Stage 2 of the automated install: turn a fresh Ubuntu Server into a winslot
+# host. Runs once on first boot (winslot-bootstrap.service); safe to re-run by
+# hand: finished steps are skipped (markers in /var/lib/winslot-bootstrap).
+#
+# Inputs, all copied off the installer by autoinstall into /var/opt/winslot:
+#   repo/                 this git repository (repo/sites/$SITE.* is the site config)
+#   media/*.iso           Windows install ISO
+#   media/payload/        pinned guest payload (checked again against payload.list)
+#   secrets/host-ca.tar.age   optional: this site's host CA + management key backup
+# Log: journalctl -u winslot-bootstrap, and /var/log/winslot-bootstrap.log
+set -euo pipefail
+exec > >(tee -a /var/log/winslot-bootstrap.log) 2>&1
+export HOME=${HOME:-/root}          # systemd gives services no $HOME; Packer requires one
+
+SRC=/var/opt/winslot
+REPO=$SRC/repo
+SITE=$(cat "$REPO/install/SITE")
+source "$REPO/sites/$SITE.conf"
+STATE=/var/lib/winslot-bootstrap
+mkdir -p "$STATE"
+step() {  # step NAME: true if NAME still has to run; prints a header
+  if [ -e "$STATE/$1" ]; then echo "== $1: already done"; return 1; fi
+  echo; echo "== $1  ($(date -Is))"
+}
+done_() { touch "$STATE/$1"; }
+
+if step console-root; then
+  # Break-glass is the console: the winslot package's winslot-console.service
+  # sets a random root password and shows it, with the SSH host keys, on the
+  # console login prompt. Root never logs in over SSH, SSH takes no passwords,
+  # su is limited to the sudo group. 10- sorts before cloud-init's 50- drop-in
+  # (sshd keeps the first value it reads).
+  printf 'PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\n' > /etc/ssh/sshd_config.d/10-winslot.conf
+  systemctl reload ssh
+  sed -i 's/^# *auth *required *pam_wheel.so$/auth       required   pam_wheel.so group=sudo/' /etc/pam.d/su
+  done_ console-root
+fi
+
+if step serial-console; then
+  # Boot messages, GRUB and a login prompt on the serial port as well as the
+  # screen. systemd's getty generator starts serial-getty@$SERIAL from the
+  # console= argument; the last console= also gets systemd's own boot status.
+  cat > /etc/default/grub.d/90-winslot-serial.cfg <<EOF
+GRUB_CMDLINE_LINUX_DEFAULT="\$GRUB_CMDLINE_LINUX_DEFAULT console=tty0 console=$SERIAL,115200n8"
+GRUB_TERMINAL="console serial"
+GRUB_SERIAL_COMMAND="serial --unit=${SERIAL#ttyS} --speed=115200"
+EOF
+  update-grub
+  done_ serial-console
+fi
+
+if step packages; then
+  # HashiCorp's apt repo for Packer. Pin the signing key's fingerprint, as
+  # published at https://www.hashicorp.com/en/trust/security.
+  curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg
+  gpg --show-keys --with-colons /usr/share/keyrings/hashicorp.gpg | grep -q '^fpr:::::::::D55C0D1AC78A8D8126CB631CFC9CA96ACA026560:' \
+    || { echo "HashiCorp key fingerprint mismatch"; exit 1; }
+  echo "deb [signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+    > /etc/apt/sources.list.d/hashicorp.list
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    qemu-kvm libvirt-daemon-system libvirt-clients ovmf swtpm swtpm-tools \
+    qemu-utils xorriso 7zip frr packer \
+    golang-1.24-go debhelper devscripts
+  usermod -aG libvirt "$ADMIN_USER"
+  done_ packages
+fi
+
+if step zfs; then
+  # Partition 4 of the disk holding /boot was left raw by autoinstall.
+  DISK=/dev/$(lsblk -no PKNAME "$(findmnt -no SOURCE /boot)")
+  PART=$(lsblk -lnpo NAME,TYPE "$DISK" | awk '$2=="part"{print $1}' | sed -n 4p)
+  echo "pool tank on $PART"
+  zpool create -f -o ashift=12 -O compression=lz4 -O atime=off -O xattr=sa tank "$PART"
+  zfs create -o mountpoint=/var/lib/libvirt/iso -o recordsize=1M tank/iso
+  zfs create -o mountpoint=/var/lib/winslot -o recordsize=64K -o compression=zstd tank/winslot
+  done_ zfs
+fi
+
+if step media; then
+  mv "$SRC"/media/*.iso /var/lib/libvirt/iso/
+  install -d /var/cache/winslot/payload
+  mv "$SRC"/media/payload/* /var/cache/winslot/payload/
+  done_ media
+fi
+
+if step vm-network; then
+  # Routed VM network (no NAT); dnsmasq does DHCP and registers <vm>.$ZONE.
+  cat > /tmp/net.xml <<EOF
+<network>
+  <name>default</name>
+  <forward mode='route'/>
+  <bridge name='virbr0' stp='on' delay='0'/>
+  <domain name='$ZONE' localOnly='yes'/>
+  <ip address='$VM_NET_ADDRESS' prefix='$VM_NET_PREFIX'>
+    <dhcp><range start='$VM_DHCP_START' end='$VM_DHCP_END'/></dhcp>
+  </ip>
+</network>
+EOF
+  virsh net-destroy default 2>/dev/null || true
+  virsh net-undefine default 2>/dev/null || true
+  virsh net-define /tmp/net.xml && virsh net-autostart default
+  # The host resolves the VM zone through systemd-resolved on virbr0; the
+  # bridge is recreated whenever the network starts, so a hook reapplies it.
+  install -d /etc/libvirt/hooks
+  cat > /etc/libvirt/hooks/network <<EOF
+#!/bin/sh
+# libvirt network hook: \$1 = network, \$2 = operation.
+[ "\$1" = default ] && [ "\$2" = started ] || exit 0
+resolvectl dns virbr0 $VM_NET_ADDRESS
+resolvectl domain virbr0 '~$ZONE'
+EOF
+  chmod 755 /etc/libvirt/hooks/network
+  # libvirt's dnsmasq only answers the VM bridge. The host's resolver (which
+  # routes the zone to it) also answers on the uplink, so Prometheus and
+  # admins elsewhere can resolve <vm>.$ZONE and the SRV discovery record.
+  install -d /etc/systemd/resolved.conf.d
+  printf '[Resolve]\nDNSStubListenerExtra=%s\n' "${ADDRESS%/*}" > /etc/systemd/resolved.conf.d/winslot-lan.conf
+  systemctl restart systemd-resolved
+  systemctl restart libvirtd
+  [ "$(virsh net-info default | awk '/^Active/{print $2}')" = yes ] || virsh net-start default
+  done_ vm-network
+fi
+
+if step ospf; then
+  sed -i 's/^ospfd=no/ospfd=yes/' /etc/frr/daemons
+  cat > /etc/frr/frr.conf <<EOF
+frr defaults traditional
+hostname $HOSTNAME
+log syslog informational
+!
+interface $NIC
+ ip ospf area $OSPF_AREA
+!
+interface virbr0
+ ip ospf area $OSPF_AREA
+!
+router ospf
+ ospf router-id $VM_NET_ADDRESS
+ passive-interface virbr0
+!
+EOF
+  chown frr:frr /etc/frr/frr.conf
+  systemctl restart frr
+  done_ ospf
+fi
+
+if step winslot; then
+  # Build and install the winslot package from this checkout.
+  rm -rf /tmp/winslot-build && cp -a "$REPO" /tmp/winslot-build
+  (cd /tmp/winslot-build && dpkg-buildpackage -b -us -uc)
+  # Site settings and admin keys go in place first: the package's postinst runs
+  # `winslot host init`, which reads the config and adds the management key
+  # to the admin list.
+  install -d /etc/winslot
+  printf '[windows]\niso = "%s"\ntimezone = "%s"\n\n[network]\nzone = "%s"\ngateway = "%s"\n' \
+    "$(ls /var/lib/libvirt/iso/*.iso | head -1)" "$WINDOWS_TIMEZONE" "$ZONE" "$VM_NET_ADDRESS" \
+    > /etc/winslot/winslot.toml
+  cp "$REPO/sites/$SITE.admin-keys" /etc/winslot/authorized_keys          # same list as the host admin account
+  # A rebuilt site keeps its host CA (admins' trust line stays valid) if the
+  # CA and management key were restored into /etc/winslot before this step;
+  # otherwise host init creates new ones.
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold /tmp/winslot_*.deb
+  done_ winslot
+fi
+
+if step golden-image; then
+  packer plugins install github.com/hashicorp/qemu
+  winslot image build            # builds, verifies and imports
+  done_ golden-image
+fi
+
+touch "$STATE/done"
+echo
+echo "== bootstrap complete ($(date -Is)). Create a VM with: sudo winslot vm create NAME"

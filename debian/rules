@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+# Built with Ubuntu's golang-1.24-go from vendored modules: no network needed.
+
+export PATH := /usr/lib/go-1.24/bin:$(PATH)
+export GOFLAGS := -mod=vendor
+export GOCACHE := $(CURDIR)/debian/.gocache
+export GOTOOLCHAIN := local
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	$(MAKE) build completions
+
+override_dh_auto_test:
+	$(MAKE) test
+
+override_dh_auto_install:
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/winslot
+
+override_dh_auto_clean:
+	rm -rf bin debian/.gocache

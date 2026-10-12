@@ -1,0 +1,10 @@
+[Unit]
+Description=winslot: record newly activated Windows slots in the license register
+Documentation=man:winslot(8) file:///usr/share/doc/winslot/RUNBOOK.md
+After=libvirtd.service network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/winslot/mgmt_key
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/winslot license scan

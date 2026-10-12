@@ -1,0 +1,14 @@
+[Unit]
+Description=winslot host bootstrap (stage 2 of the automated install)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/winslot-bootstrap/done
+
+[Service]
+Type=oneshot
+ExecStart=/var/opt/winslot/repo/install/bootstrap
+StandardOutput=journal+console
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user.target

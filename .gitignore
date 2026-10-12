@@ -1,0 +1,11 @@
+/bin/
+/debian/.gocache/
+/debian/winslot/
+/debian/files
+/debian/*.substvars
+/debian/*.debhelper*
+/debian/debhelper-build-stamp
+/install/SITE
+*.iso
+/sites/*
+!/sites/example.*

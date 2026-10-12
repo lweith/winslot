@@ -1,0 +1,65 @@
+#cloud-config
+# Ubuntu Server autoinstall for a winslot host (/autoinstall.yaml on the installer). Rendered by make-installer
+# from sites/$SITE.conf; ${...} are filled in from that file.
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard: {layout: us}
+  timezone: ${TIMEZONE}
+  refresh-installer: {update: false}
+  source: {id: ubuntu-server-minimal}
+
+  network:
+    version: 2
+    ethernets:
+      uplink:
+        match: {name: "${NIC}"}
+        set-name: ${NIC}
+        addresses: [${ADDRESS}]
+        routes: [{to: default, via: ${GATEWAY}, metric: 100}]
+        nameservers: {addresses: [${DNS}]}
+        dhcp4: true                       # fallback address; its default route ranks below the static one
+        dhcp4-overrides: {route-metric: 200}
+
+  # One disk (the largest): ESP, /boot, LVM for the OS, and the rest left raw
+  # as partition 4 for the ZFS pool, which install/bootstrap creates.
+  storage:
+    config:
+      - {type: disk, id: disk0, match: {size: largest}, ptable: gpt, wipe: superblock-recursive, preserve: false}
+      - {type: partition, id: esp, device: disk0, number: 1, size: 1G, flag: boot, grub_device: true}
+      - {type: partition, id: bootp, device: disk0, number: 2, size: 2G}
+      - {type: partition, id: pvp, device: disk0, number: 3, size: 100G}
+      - {type: partition, id: zfsp, device: disk0, number: 4, size: -1}
+      - {type: format, id: esp-fs, volume: esp, fstype: fat32}
+      - {type: format, id: boot-fs, volume: bootp, fstype: ext4}
+      - {type: lvm_volgroup, id: vg0, name: vg0, devices: [pvp]}
+      - {type: lvm_partition, id: root-lv, volgroup: vg0, name: root, size: 64G}
+      - {type: format, id: root-fs, volume: root-lv, fstype: ext4}
+      - {type: mount, id: root-m, device: root-fs, path: /}
+      - {type: mount, id: boot-m, device: boot-fs, path: /boot}
+      - {type: mount, id: esp-m, device: esp-fs, path: /boot/efi}
+
+  ssh:
+    install-server: true
+    allow-pw: false
+
+  user-data:
+    hostname: ${HOSTNAME}
+    users:
+      - name: ${ADMIN_USER}
+        groups: [sudo]
+        sudo: "ALL=(ALL) NOPASSWD:ALL"
+        lock_passwd: true
+        shell: /bin/bash
+        ssh_authorized_keys:
+${SSH_KEYS_YAML}
+
+  packages: [zfsutils-linux, git, curl, make]
+
+  # Copy the repo and media off the installer and arrange for stage 2
+  # (install/bootstrap) to run on first boot.
+  late-commands:
+    - mkdir -p /target/var/opt/winslot
+    - cp -a /cdrom/winslot/. /target/var/opt/winslot/
+    - cp /target/var/opt/winslot/repo/install/winslot-bootstrap.service /target/etc/systemd/system/
+    - curtin in-target -- systemctl enable winslot-bootstrap.service

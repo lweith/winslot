@@ -1,0 +1,16 @@
+[Unit]
+Description=winslot break-glass root password and SSH host keys on the console prompt
+Documentation=man:agetty(8)
+# Before the login prompts appear; after anything that may (re)generate host keys.
+Wants=getty-pre.target
+Before=getty-pre.target
+After=local-fs.target ssh.service cloud-init.service
+ConditionPathExists=/etc/winslot/winslot.toml
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/winslot host console
+
+[Install]
+WantedBy=multi-user.target

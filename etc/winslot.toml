@@ -1,0 +1,18 @@
+# /etc/winslot/winslot.toml: site settings for winslot.
+# Unknown keys are an error, so typos fail loudly. Defaults are shown
+# commented out.
+
+[windows]
+iso = "/var/lib/libvirt/iso/Windows11_Client_x64_en-us_26300_9457.iso"
+# edition = "Windows 11 Pro"            # recorded in each slot
+timezone = "Eastern Standard Time"      # Windows time zone ID for new VMs
+
+# [storage]
+# data  = "/var/lib/winslot"            # ZFS dataset: images/, disks/, builds/
+# cache = "/var/cache/winslot"          # payload downloads
+# etc   = "/etc/winslot"                # host CA, management key, known_hosts, admin keys
+
+[network]
+# libvirt = "default"                   # libvirt network for VMs
+zone    = "vms.example.org"           # DNS zone VMs register in (DHCP)
+gateway = "10.0.3.1"                  # this host on the VM network; the management key works only from here

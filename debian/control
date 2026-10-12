@@ -1,0 +1,20 @@
+Source: winslot
+Section: admin
+Priority: optional
+Maintainer: TMRA tech committee <tech@w8hhf.org>
+Build-Depends: debhelper-compat (= 13), golang-1.24-go
+Standards-Version: 4.6.2
+Homepage: https://w8hhf.org/
+
+Package: winslot
+Architecture: amd64
+Depends: ${misc:Depends}, libvirt-daemon-system, libvirt-clients, qemu-system-x86, qemu-utils,
+ ovmf, swtpm, swtpm-tools, zfsutils-linux, xorriso, 7zip
+Recommends: packer, frr
+Description: licensed Windows VM slots on libvirt
+ Builds golden Windows images with Packer and runs Windows VMs as "license
+ slots": libvirt domains whose hardware identity (SMBIOS UUID, MAC, disk
+ serial/WWN, machine type) never changes, so a VM can be recreated on a fresh
+ disk and reactivate by itself. VM SSH host keys are learned over the serial
+ port at first boot and signed by a host CA; VMs are published for Prometheus
+ DNS service discovery.

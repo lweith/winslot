@@ -1,0 +1,75 @@
+
+                         ~~~ YOU HAVE FOUND THE ROOT CHAMBER ~~~
+
+  You stand in a small, quiet room. The hum of fans is the only sound. On the
+  console, a password glowed, and you were wise enough to use it. Few come this
+  far. Those who do are, by ancient custom of the Toledo Mobile Radio
+  Association, now the CHAMPION: the one chosen to understand how all of this
+  works, and to keep it working.
+
+  Do not be afraid. Others walked this path before you, and they left a map.
+
+  > LOOK
+
+  This is a VM host: one Ubuntu server running Windows (and other) virtual
+  machines for the people who run our repeater-site services. It was built
+  automatically from a USB stick, and it can be built again the same way.
+
+  > EXAMINE MAP
+
+    /var/opt/winslot/repo/          The Book of Origins: the git repository this
+                                    server was built from. README.md and
+                                    RUNBOOK.md explain everything. READ THEM.
+    /usr/share/doc/winslot/         The same books, as installed.
+    /var/log/winslot-bootstrap.log  The chronicle of this server's creation.
+    /etc/winslot/                   The Vault: winslot.conf (site settings),
+                                    authorized_keys (who may enter every VM),
+                                    host_ca (THE HOST CA: guard it), mgmt_key,
+                                    known_hosts (VM keys learned at their birth),
+                                    console-root.toml (the password that glowed).
+    zfs list -r tank                The Hoard: golden images, VM disks.
+    virsh list --all                The Inhabitants, living and dormant.
+    vtysh -c 'show ip ospf neighbor'  The Roads to other sites (OSPF).
+    /etc/libvirt/hooks/network      Why <vm>.<zone> names resolve on this host.
+
+  > INVENTORY
+
+    The `winslot` command. Run it with no arguments for its spellbook:
+      winslot vm list                  who exists, who sleeps
+      winslot vm create NAME           summon a new Windows VM (a "license slot")
+      winslot vm decommission NAME     put one to sleep (its identity is kept)
+      winslot vm recreate NAME         wake it on a fresh disk, same identity
+      winslot vm certify NAME          renew its SSH host certificate
+      winslot image build / import     forge a new golden Windows image
+
+  > READ INSCRIPTION ON WALL
+
+    I.   A Windows VM's identity (UUID, MAC, disk serial/WWN, machine type) is
+         what its license is bound to. NEVER `virsh undefine` a winslot VM.
+         Decommission it instead. The identity is the license.
+    II.  Golden images are built, never patched. Need newer Windows or newer
+         software? Build a new image, recreate the VMs onto it.
+    III. Every VM's SSH host key was learned over its serial port at first
+         boot, before anyone connected, and signed by the host CA. Admins
+         trust that CA with one line. If someone ever asks you to "just
+         accept the new host key", be suspicious and ask why.
+    IV.  The root password on the console is the break-glass key. Whoever can
+         see the console owns this box anyway. Root never logs in over SSH.
+         Daily work: ssh as tmra-admin, then sudo. The prompt is redrawn at
+         every boot (winslot-console.service). Changed root's password by
+         hand? The console will admit it no longer knows it. Want a fresh
+         one shown there? winslot host console --new-password
+    V.   Snapshot before you change anything. Rolling back is cheap; regret
+         is not.
+
+  > ASK ABOUT HELP
+
+    The tech committee of W8HHF. The people who left this map would rather
+    you asked than guessed. And when you learn something the map doesn't say,
+    add it to the Book of Origins (the repo) so the next champion finds it.
+
+  > GO NORTH
+
+    The adventure continues in /var/opt/winslot/repo/README.md.
+
+                                   *** Good luck, Champion. 73. ***

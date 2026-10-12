@@ -1,0 +1,11 @@
+#!/bin/sh
+# Create this host's trust material on install (never replaces existing keys).
+# Needs a valid /etc/winslot/winslot.toml; if it is not set up yet, say so and
+# leave it to the admin: winslot host init
+set -e
+if [ "$1" = configure ]; then
+  winslot host init || echo "winslot: edit /etc/winslot/winslot.toml, then run: winslot host init" >&2
+  # The map for whoever finds their way to root (shipped text; edit it in the repo).
+  install -m 644 /usr/share/doc/winslot/root-README /root/README
+fi
+#DEBHELPER#

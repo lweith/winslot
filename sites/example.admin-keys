@@ -1,0 +1,2 @@
+# One OpenSSH public key per line, with a comment naming the holder or role.
+# ssh-ed25519 AAAA... role-name

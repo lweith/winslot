@@ -1,0 +1,14 @@
+# Guest payload, pinned. One line per file:  NAME  SHA256  URL
+# `winslot payload fetch` downloads anything missing and checks every hash.
+# To update a component: change its URL, set its SHA256 to '-', fetch, verify
+# the new file, then record the hash it prints.
+firefox.msi              19a7e33aaa79b4711c566c53ebf5779fb79efe1ec8adccff2c5cb659aa7fa8ec  https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0.1/win64/en-US/Firefox%20Setup%20157.0.1.msi
+teraterm.exe             a091233b41ad3ebd2277892ad9ef077148f1720171ae225c041e895e573343fe  https://github.com/TeraTermProject/teraterm/releases/download/v5.7.1/teraterm-5.7.1-x64.exe
+7zip.msi                 0b01334a418654293513449f61d6bfc99e5196ca371e3c3dc961eda57cd535c6  https://github.com/ip7z/7zip/releases/download/26.04/7z2604-x64.msi
+notepadpp.exe            26f3bcced788fadbac4e7e577b430ea2ce6060cf3bcad993ef4612ecd7d743da  https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.8.1/npp.8.9.8.1.Installer.x64.exe
+powershell.msi           958838ff55091e1c8705d89efed0cc7e8245a3a6ef6c0ccfae20015227108ad8  https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.msi
+git.exe                  52188f917b378f00c70ec136bcf090005f30d44fbc4eba0bce759cc6592d60f6  https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.2/Git-2.56.0.2-64-bit.exe
+windows_exporter.msi     0aadce6afb20182b678bfca9e8f2e8464ef48c469b28b4cf02e99d82158f5d40  https://github.com/prometheus-community/windows_exporter/releases/download/v0.31.8/windows_exporter-0.31.8-amd64.msi
+openssh.msi              ddec9c53864280759cf9f74791cefd387100e3946aa849a1c138a4ed1b96b7d9  https://github.com/PowerShell/Win32-OpenSSH/releases/download/10.0.0.0p2-Preview/OpenSSH-Win64-v10.0.0.0.msi
+SysinternalsSuite.zip    e1c73a31b575c9cb216a94484a5b162bd585deb8bd1a8775c8103ced39cc67ce  https://download.sysinternals.com/files/SysinternalsSuite.zip
+virtio-win.iso           303f7ae40dad495d6ae474fdc571df58958a4dbc5c37a522d80f9a203867949d  https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.302-1/virtio-win-0.1.302.iso
