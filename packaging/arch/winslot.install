@@ -1,0 +1,8 @@
+post_install() {
+  winslot host init || echo "winslot: copy /usr/share/doc/winslot/winslot.toml.example to /etc/winslot/winslot.toml, fill it in, then run: winslot host init" >&2
+  install -m 644 /usr/share/doc/winslot/root-README /root/README
+}
+
+post_upgrade() {
+  post_install
+}

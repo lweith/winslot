@@ -1,0 +1,49 @@
+# Builds from the committed tree of this repository: cd packaging/arch && makepkg
+#
+# Known limit: Arch's edk2-ovmf has no firmware with Microsoft's Secure Boot keys
+# enrolled. winslot's VMs and image builds require it, so on stock Arch they
+# fail until such firmware is installed. See README.md.
+pkgname=winslot
+pkgver=0.2.3
+pkgrel=1
+pkgdesc='Licensed Windows VM slots on libvirt'
+arch=(x86_64)
+url='https://github.com/lweith/winslot'
+license=(GPL-3.0-only)
+depends=(7zip dnsmasq edk2-ovmf libisoburn libvirt qemu-base swtpm)
+makedepends=(git go)
+optdepends=('frr: advertise the VM network over OSPF'
+            'packer: build golden images'
+            'zfs-utils: ZFS storage for VM disks')
+install=winslot.install
+options=(!debug)
+
+prepare() {
+  git -C "$startdir/../.." archive --format=tar HEAD | tar -x -C "$srcdir"
+}
+
+# debian/changelog is the one place the version is set.
+pkgver() {
+  sed -n '1s/.*(\(.*\)).*/\1/p' "$srcdir/debian/changelog"
+}
+
+build() {
+  cd "$srcdir"
+  GOFLAGS=-mod=vendor make build completions VERSION="$pkgver"
+}
+
+check() {
+  cd "$srcdir"
+  GOFLAGS=-mod=vendor make test
+}
+
+package() {
+  cd "$srcdir"
+  GOFLAGS=-mod=vendor make install DESTDIR="$pkgdir" VERSION="$pkgver"
+  # Arch: /usr/sbin is a symlink to /usr/bin, and zsh completions live elsewhere.
+  install -d "$pkgdir/usr/bin" "$pkgdir/usr/share/zsh/site-functions"
+  mv "$pkgdir/usr/sbin/winslot" "$pkgdir/usr/bin/winslot"
+  rmdir "$pkgdir/usr/sbin"
+  mv "$pkgdir/usr/share/zsh/vendor-completions/_winslot" "$pkgdir/usr/share/zsh/site-functions/_winslot"
+  rmdir "$pkgdir/usr/share/zsh/vendor-completions"
+}

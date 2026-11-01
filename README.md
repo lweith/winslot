@@ -106,8 +106,21 @@ assets/packer/           Packer template and the pinned payload list (embedded)
 etc/winslot.toml         configuration example (installed under /usr/share/doc/winslot)
 install/                 server installer: autoinstall template, bootstrap, make-installer
 sites/example.*          example per-site settings and admin key list; real sites/<site>.* are not in git
-debian/                  packaging
+debian/, packaging/arch/ packaging
+.github/workflows/       package builds and releases
 ```
+
+## Packages
+
+Every push builds x86_64 packages for Ubuntu 24.04, Ubuntu 26.04, Debian 13 and
+Arch. To publish a release, set the version in `debian/changelog`, commit, and
+push a tag `v<version>`: the packages and their `SHA256SUMS` appear as a GitHub
+release.
+
+- **Debian** has `zfsutils-linux` in `contrib`, which must be enabled.
+- **Arch** ships no UEFI firmware with Microsoft's Secure Boot keys enrolled, so
+  `winslot image build` and VMs fail there until such firmware is installed.
+  ZFS tools aren't in Arch's official repositories either, so they are optional.
 
 `make check` runs vet, staticcheck and the tests with the race detector. `make
 integration` builds the libvirt integration tests, to run as root on a host.
