@@ -59,6 +59,15 @@ manager. It finishes only when the VM passes the readiness check (CA-verified
 SSH works). Then, in the VM: activate Windows (see 4a), install the
 application, and snapshot before you change anything.
 
+**Addresses**: each slot gets a static address, a DHCP reservation on its MAC,
+from the part of the VM subnet below the dynamic range. It is kept through
+decommission and recreate, and freed by delete. For a slot made before 0.2.2, or
+to choose the address:
+
+```
+winslot vm reserve wiresx --ip 10.0.3.161
+```
+
 **Decommission** (VM gone, license slot kept):
 
 ```

@@ -1,3 +1,13 @@
+winslot (0.2.2) noble; urgency=medium
+
+  * Golden image: SumatraPDF, with its update check off. New users default
+    to Firefox for web links and pages and SumatraPDF for PDFs.
+  * Static addresses: each slot gets a DHCP reservation on its MAC, kept
+    through decommission and recreate. "vm reserve" sets one on an existing
+    slot; "vm list" shows it.
+
+ -- TMRA tech committee <tech@w8hhf.org>  Sun, 01 Nov 2026 01:30:00 -0400
+
 winslot (0.2.1) noble; urgency=medium
 
   * "host console" and winslot-console.service: break-glass root password,

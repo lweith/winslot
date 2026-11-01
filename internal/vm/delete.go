@@ -3,6 +3,7 @@ package vm
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 
@@ -42,6 +43,9 @@ func (m *Manager) Delete(ctx context.Context, name string) error {
 		return err
 	}
 	os.Remove(m.SerialLog(name))
+	if err := m.ReleaseIP(name); err != nil {
+		return err
+	}
 	m.logf("deleted %s", name)
 	return m.WithdrawSRV(name)
 }
@@ -109,6 +113,9 @@ func (m *Manager) Restore(ctx context.Context, rec license.Record) error {
 		if err := reg.Save(m.RegisterPath()); err != nil {
 			return err
 		}
+	}
+	if _, err := m.ReserveIP(name, netip.Addr{}); err != nil {
+		return err
 	}
 	m.logf("restored slot %s (uuid %s); install it: winslot vm recreate %s", name, rec.UUID, name)
 	return nil

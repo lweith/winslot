@@ -76,7 +76,7 @@ pieces fit, not legal advice; Microsoft's license terms govern.
   into images and pushed to running VMs (`winslot vm push-keys`). The management
   key, used by winslot itself, works only from the host's VM-network address.
 - **Network:** VMs sit on a routed subnet (no NAT) advertised by OSPF. DHCP
-  registers each VM as `<name>.<zone>`. libvirt's `clean-traffic` filter pins
+  registers each VM as `<name>.<zone>`, at a static address reserved for its MAC. libvirt's `clean-traffic` filter pins
   each VM to its own MAC and DHCP address, so VMs can't impersonate each other
   or the host.
 - **Monitoring:** every VM runs windows_exporter on TCP 9182 and is published as a
@@ -87,7 +87,8 @@ pieces fit, not legal advice; Microsoft's license terms govern.
 
 ## What's in the golden image
 
-Windows 11 Pro; Firefox, 7-Zip, Notepad++, Tera Term, PowerShell 7, Git,
+Windows 11 Pro; Firefox and SumatraPDF (the default browser and PDF viewer for
+new users; SumatraPDF's update check is off), 7-Zip, Notepad++, Tera Term, PowerShell 7, Git,
 Sysinternals (`C:\Tools\Sysinternals`); windows_exporter (TCP 9182); QEMU guest
 agent and virtio drivers; OpenSSH server (Win32-OpenSSH MSI: offline-installable,
 Microsoft-signed; patched by building a new image); RDP with NLA; the club

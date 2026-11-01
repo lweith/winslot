@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -22,7 +23,45 @@ func newVMCmd(a *app) *cobra.Command {
 		Short: "Create, decommission, recreate and list license slots",
 	}
 	cmd.AddCommand(newVMCreateCmd(a), newVMRecreateCmd(a), newVMDecommissionCmd(a), newVMDeleteCmd(a), newVMRestoreCmd(a),
-		newVMListCmd(a), newVMCertifyCmd(a), newVMPushKeysCmd(a), newVMUpdateCmd(a))
+		newVMListCmd(a), newVMCertifyCmd(a), newVMPushKeysCmd(a), newVMUpdateCmd(a), newVMReserveCmd(a))
+	return cmd
+}
+
+func newVMReserveCmd(a *app) *cobra.Command {
+	var ip string
+	cmd := &cobra.Command{
+		Use:   "reserve NAME",
+		Short: "Give an existing slot a static address (a DHCP reservation)",
+		Long: `Reserves a static address for a slot's MAC in the libvirt network. Slots get
+one at create, restore and recreate; this is for slots made by an older winslot
+and for changing an address. Without --ip, a slot that has an address keeps it,
+and one that hasn't gets the lowest free address below the dynamic DHCP range.
+--ip may name any free address in the subnet, so a VM can keep the one it has. A
+running VM moves to a new address at its next DHCP renewal (ipconfig /renew).`,
+		Example:           "  winslot vm reserve wiresx --ip 10.0.3.161",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: a.slotNames,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var want netip.Addr
+			if ip != "" {
+				var err error
+				if want, err = netip.ParseAddr(ip); err != nil {
+					return fmt.Errorf("--ip: %w", err)
+				}
+			}
+			m, err := a.manager(cmd.OutOrStdout())
+			if err != nil {
+				return err
+			}
+			addr, err := m.ReserveIP(args[0], want)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", args[0], addr)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&ip, "ip", "", "the address to reserve (default: the slot's current reservation, or the next free one)")
 	return cmd
 }
 
@@ -302,15 +341,23 @@ func newVMListCmd(a *app) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			addrs, err := m.Reservations()
+			if err != nil {
+				return err
+			}
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "NAME\tSTATE\tLICENSE\tGOLDEN IMAGE\tDISK\tNESTED")
+			fmt.Fprintln(w, "NAME\tSTATE\tADDRESS\tLICENSE\tGOLDEN IMAGE\tDISK\tNESTED")
 			for _, e := range entries {
+				addr := addrs[e.Name]
+				if addr == "" {
+					addr = "-"
+				}
 				d := byteSize(e.Meta.DiskBytes)
 				lic := e.License
 				if lic == "" {
 					lic = "- (disposable)"
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%v\n", e.Name, e.State, lic, e.Meta.Golden, d.String(), e.Meta.Nested)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%v\n", e.Name, e.State, addr, lic, e.Meta.Golden, d.String(), e.Meta.Nested)
 			}
 			return w.Flush()
 		},

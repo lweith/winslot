@@ -57,6 +57,22 @@ try {
   Exe 'teraterm'   'teraterm.exe'   @('/ALLUSERS', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-')
   Exe 'notepadpp'  'notepadpp.exe'  @('/S')
   Exe 'git'        'git.exe'        @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOCANCEL', '/SP-')
+  Exe 'sumatrapdf' 'sumatrapdf.exe' @('-s', '-all-users')
+  # No update prompts: new software means a new image. InternetAccess also covers
+  # SumatraPDF's crash reports; links in documents still open. The file allows
+  # only what it lists, so everything else is spelled out.
+  @'
+[Policies]
+InternetAccess = 0
+DiskAccess = 1
+SavePreferences = 1
+RegistryAccess = 1
+PrinterAccess = 1
+CopySelection = 1
+FullscreenAccess = 1
+LinkProtocols = http,https,mailto
+SafeFileTypes = audio,video,webpage
+'@ | Set-Content 'C:\Program Files\SumatraPDF\sumatrapdfrestrict.ini' -Encoding Ascii
 
   Log 'install sysinternals'
   $si = 'C:\Tools\Sysinternals'

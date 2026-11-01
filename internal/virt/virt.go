@@ -53,6 +53,12 @@ type Hypervisor interface {
 	// AddDNSSRV / DeleteDNSSRV edit a network's DNS SRV records, live and persistent.
 	AddDNSSRV(network, srvXML string) error
 	DeleteDNSSRV(network, srvXML string) error
+
+	// NetworkXML returns a network's live definition.
+	NetworkXML(network string) (string, error)
+	// AddDHCPHost / DeleteDHCPHost edit a network's DHCP reservations, live and persistent.
+	AddDHCPHost(network, hostXML string) error
+	DeleteDHCPHost(network, hostXML string) error
 }
 
 // Conn implements Hypervisor over the local libvirtd socket.
@@ -211,21 +217,37 @@ func (c *Conn) DeleteSnapshotMetadata(name string) error {
 	return nil
 }
 
-func (c *Conn) updateSRV(network, srvXML string, cmd libvirt.NetworkUpdateCommand) error {
+func (c *Conn) updateNetwork(network string, section libvirt.NetworkUpdateSection, x string, cmd libvirt.NetworkUpdateCommand) error {
 	n, err := c.l.NetworkLookupByName(network)
 	if err != nil {
 		return fmt.Errorf("network %s: %w", network, err)
 	}
-	return c.l.NetworkUpdate(n, uint32(cmd), uint32(libvirt.NetworkSectionDNSSrv), -1, srvXML,
+	return c.l.NetworkUpdate(n, uint32(cmd), uint32(section), -1, x,
 		libvirt.NetworkUpdateAffectLive|libvirt.NetworkUpdateAffectConfig)
 }
 
 func (c *Conn) AddDNSSRV(network, srvXML string) error {
-	return c.updateSRV(network, srvXML, libvirt.NetworkUpdateCommandAddLast)
+	return c.updateNetwork(network, libvirt.NetworkSectionDNSSrv, srvXML, libvirt.NetworkUpdateCommandAddLast)
 }
 
 func (c *Conn) DeleteDNSSRV(network, srvXML string) error {
-	return c.updateSRV(network, srvXML, libvirt.NetworkUpdateCommandDelete)
+	return c.updateNetwork(network, libvirt.NetworkSectionDNSSrv, srvXML, libvirt.NetworkUpdateCommandDelete)
+}
+
+func (c *Conn) NetworkXML(network string) (string, error) {
+	n, err := c.l.NetworkLookupByName(network)
+	if err != nil {
+		return "", fmt.Errorf("network %s: %w", network, err)
+	}
+	return c.l.NetworkGetXMLDesc(n, 0)
+}
+
+func (c *Conn) AddDHCPHost(network, hostXML string) error {
+	return c.updateNetwork(network, libvirt.NetworkSectionIPDhcpHost, hostXML, libvirt.NetworkUpdateCommandAddLast)
+}
+
+func (c *Conn) DeleteDHCPHost(network, hostXML string) error {
+	return c.updateNetwork(network, libvirt.NetworkSectionIPDhcpHost, hostXML, libvirt.NetworkUpdateCommandDelete)
 }
 
 // Undefine removes a shut-off domain for good, with its UEFI variables,

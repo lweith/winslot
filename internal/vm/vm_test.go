@@ -28,8 +28,29 @@ type fakeVirt struct {
 	t       *testing.T
 	doms    map[string]*fakeDom
 	srv     map[string]bool
+	hosts   []string
 	logDir  string
 	hostKey ssh.Signer
+}
+
+func (f *fakeVirt) NetworkXML(string) (string, error) {
+	return `<network><ip address='10.0.3.1' netmask='255.255.255.0'><dhcp><range start='10.0.3.100' end='10.0.3.254'/>` +
+		strings.Join(f.hosts, "") + `</dhcp></ip></network>`, nil
+}
+
+func (f *fakeVirt) AddDHCPHost(_, x string) error {
+	f.hosts = append(f.hosts, x)
+	return nil
+}
+
+func (f *fakeVirt) DeleteDHCPHost(_, x string) error {
+	for i, h := range f.hosts {
+		if h == x {
+			f.hosts = append(f.hosts[:i], f.hosts[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("no reservation %s", x)
 }
 
 type fakeDom struct {

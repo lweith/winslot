@@ -1,5 +1,6 @@
-# Desktop defaults: the TMRA wallpaper for every user, a STIG-style sign-in
-# (typed username, logon notice, idle lock), and the consumer features that
+# Desktop defaults: the TMRA wallpaper for every user, Firefox and SumatraPDF as
+# the default browser and PDF viewer, a STIG-style sign-in (typed username, logon
+# notice, idle lock), and the consumer features that
 # cost CPU, memory or attention without doing anything for a repeater-site VM
 # switched off. Only settings Windows 11 Pro honours (several CloudContent
 # policies are Enterprise/Education-only).
@@ -106,6 +107,49 @@ try {
   & reg.exe unload 'HKU\WinslotDefault' | Out-Null
 }
 Write-Host 'desktop: Default profile set'
+
+# --- default browser and PDF viewer ----------------------------------------------
+# Firefox for web links and pages and SumatraPDF for PDFs, for every user created
+# from now on: Windows applies the OEM associations at a user's first sign-in.
+# Existing users keep theirs. The rest of the OEM list stays as Microsoft ships
+# it. Firefox's ProgIds carry a hash of its install path, so they are read from
+# what its installer registered. SumatraPDF's Capabilities key names a ProgId
+# that doesn't exist ("SumatraPDF"); the real one is SumatraPDF.pdf.
+$ff = @(Get-ChildItem 'HKLM:\SOFTWARE\Clients\StartMenuInternet' | Where-Object PSChildName -like 'Firefox-*')
+if ($ff.Count -ne 1) { throw "expected one registered Firefox, found $($ff.Count)" }
+$caps = "$($ff[0].PSPath)\Capabilities"
+$urls = Get-ItemProperty "$caps\URLAssociations"
+$files = Get-ItemProperty "$caps\FileAssociations"
+$defaults = [ordered]@{}
+foreach ($i in 'http', 'https') { $defaults[$i] = @($urls.$i, 'Firefox') }
+foreach ($i in '.htm', '.html', '.shtml', '.xht', '.xhtml') { $defaults[$i] = @($files.$i, 'Firefox') }
+$defaults['.pdf'] = @('SumatraPDF.pdf', 'SumatraPDF')
+
+$oem = "$env:WINDIR\System32\OEMDefaultAssociations.xml"
+$xml = New-Object System.Xml.XmlDocument
+$xml.Load($oem)
+foreach ($i in $defaults.Keys) {
+  $progId, $app = $defaults[$i]
+  if (-not $progId -or -not (Test-Path -LiteralPath "Registry::HKEY_CLASSES_ROOT\$progId")) { throw "$app registered no handler for $i ($progId)" }
+  foreach ($n in @($xml.DocumentElement.SelectNodes("Association[@Identifier='$i']"))) { [void]$xml.DocumentElement.RemoveChild($n) }
+  $a = $xml.CreateElement('Association')
+  $a.SetAttribute('Identifier', $i)
+  $a.SetAttribute('ProgId', $progId)
+  $a.SetAttribute('ApplicationName', $app)
+  [void]$xml.DocumentElement.AppendChild($a)
+}
+$tmp = Join-Path $env:TEMP 'winslot-default-apps.xml'
+$xml.Save($tmp)
+& dism.exe /Online /Import-DefaultAppAssociations:$tmp /Quiet | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "dism could not import the default app associations: exit $LASTEXITCODE" }
+Remove-Item $tmp
+$check = New-Object System.Xml.XmlDocument
+$check.Load($oem)
+foreach ($i in $defaults.Keys) {
+  $n = $check.DocumentElement.SelectSingleNode("Association[@Identifier='$i']")
+  if (-not $n -or $n.GetAttribute('ProgId') -ne $defaults[$i][0]) { throw "the default app association for $i did not take" }
+}
+Write-Host 'desktop: new users default to Firefox and SumatraPDF'
 
 # --- bundled consumer apps -------------------------------------------------------
 # Removed for existing users and from the image (provisioned). A package that

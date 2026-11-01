@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
@@ -144,6 +145,9 @@ func (m *Manager) Create(ctx context.Context, name string, o CreateOptions) (str
 	if err := m.setMetadata(name, meta); err != nil {
 		return "", err
 	}
+	if _, err := m.ReserveIP(name, netip.Addr{}); err != nil {
+		return "", err
+	}
 	return pw, m.boot(ctx, name)
 }
 
@@ -183,6 +187,9 @@ func (m *Manager) Recreate(ctx context.Context, name string, diskBytes uint64) (
 	}
 	// A fresh install also gets the current hardware template (identity kept).
 	if err := m.Update(ctx, name); err != nil {
+		return "", err
+	}
+	if _, err := m.ReserveIP(name, netip.Addr{}); err != nil { // keeps an existing reservation
 		return "", err
 	}
 	return pw, m.boot(ctx, name)

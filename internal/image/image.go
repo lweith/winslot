@@ -26,6 +26,8 @@ var MustExist = []string{
 	"Windows/Web/Wallpaper/TMRA/tmra.jpg",
 	"Windows/Resources/Themes/tmra.theme",
 	"Program Files/Mozilla Firefox/firefox.exe",
+	"Program Files/SumatraPDF/SumatraPDF.exe",
+	"Program Files/SumatraPDF/sumatrapdfrestrict.ini",
 	"Program Files/teraterm5/ttermpro.exe",
 	"Program Files/7-Zip/7z.exe",
 	"Program Files/Notepad++/notepad++.exe",
