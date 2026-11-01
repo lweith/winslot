@@ -1,3 +1,11 @@
+winslot (0.2.3) noble; urgency=medium
+
+  * The package no longer ships /etc/winslot/winslot.toml. The example is
+    /usr/share/doc/winslot/winslot.toml.example; an existing config stays.
+  * Site settings are no longer in the repository, apart from an example.
+
+ -- TMRA tech committee <tech@w8hhf.org>  Sun, 01 Nov 2026 14:00:00 -0500
+
 winslot (0.2.2) noble; urgency=medium
 
   * Golden image: SumatraPDF, with its update check off. New users default

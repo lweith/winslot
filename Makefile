@@ -60,7 +60,8 @@ install: build completions
 	install -D -m 644 systemd/winslot-license-scan.service $(DESTDIR)$(PREFIX)/lib/systemd/system/winslot-license-scan.service
 	install -D -m 644 systemd/winslot-license-scan.timer   $(DESTDIR)$(PREFIX)/lib/systemd/system/winslot-license-scan.timer
 	install -D -m 644 systemd/winslot-console.service      $(DESTDIR)$(PREFIX)/lib/systemd/system/winslot-console.service
-	install -D -m 644 etc/winslot.toml      $(DESTDIR)/etc/winslot/winslot.toml
+	install -d -m 755 $(DESTDIR)/etc/winslot
+	install -D -m 644 etc/winslot.toml      $(DESTDIR)$(PREFIX)/share/doc/winslot/winslot.toml.example
 	install -D -m 644 README.md             $(DESTDIR)$(PREFIX)/share/doc/winslot/README.md
 	install -D -m 644 RUNBOOK.md            $(DESTDIR)$(PREFIX)/share/doc/winslot/RUNBOOK.md
 	install -D -m 644 install/root-README   $(DESTDIR)$(PREFIX)/share/doc/winslot/root-README

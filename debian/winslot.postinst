@@ -4,7 +4,7 @@
 # leave it to the admin: winslot host init
 set -e
 if [ "$1" = configure ]; then
-  winslot host init || echo "winslot: edit /etc/winslot/winslot.toml, then run: winslot host init" >&2
+  winslot host init || echo "winslot: copy /usr/share/doc/winslot/winslot.toml.example to /etc/winslot/winslot.toml, fill it in, then run: winslot host init" >&2
   # The map for whoever finds their way to root (shipped text; edit it in the repo).
   install -m 644 /usr/share/doc/winslot/root-README /root/README
 fi

@@ -15,7 +15,8 @@ the site's keys, then `sudo`.
 **By hand** on Ubuntu 24.04: install the package (`apt install ./winslot_*.deb`),
 then:
 
-1. Fill in `/etc/winslot/winslot.toml` (ISO path, zone, VM-network gateway).
+1. Copy `/usr/share/doc/winslot/winslot.toml.example` to
+   `/etc/winslot/winslot.toml` and fill it in (ISO path, zone, VM-network gateway).
 2. Put the site's admin public keys in `/etc/winslot/authorized_keys`.
 3. `winslot host init` creates the host CA, the management key and `known_hosts.ca`.
 4. Set up the VM network, DNS and OSPF as `install/bootstrap` does (steps

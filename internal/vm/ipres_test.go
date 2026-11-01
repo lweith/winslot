@@ -101,7 +101,7 @@ func TestReserveExplicitAddress(t *testing.T) {
 		"10.0.3.0":   "network address",
 		"10.0.3.255": "broadcast",
 		"10.0.3.1":   "this host",
-		"10.0.0.5":     "outside",
+		"10.0.0.5":   "outside",
 	} {
 		_, err := e.m.ReserveIP("winlink", netip.MustParseAddr(addr))
 		if err == nil || !strings.Contains(err.Error(), want) {

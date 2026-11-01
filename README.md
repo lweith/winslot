@@ -103,9 +103,9 @@ cmd/winslot, internal/   the winslot command (Go): cli, vm lifecycle, image buil
                           libvirt (go-libvirt), domain XML, SSH CA, payload, disk tools
 assets/answer/           Windows answer files and in-guest scripts (embedded in the binary)
 assets/packer/           Packer template and the pinned payload list (embedded)
-etc/winslot.toml         configuration template
+etc/winslot.toml         configuration example (installed under /usr/share/doc/winslot)
 install/                 server installer: autoinstall template, bootstrap, make-installer
-sites/<site>.*           per-site settings and admin key list
+sites/example.*          example per-site settings and admin key list; real sites/<site>.* are not in git
 debian/                  packaging
 ```
 
