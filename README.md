@@ -1,5 +1,7 @@
 # winslot
 
+[![packages](https://github.com/lweith/winslot/actions/workflows/release.yml/badge.svg)](https://github.com/lweith/winslot/actions/workflows/release.yml)
+
 Licensed Windows VMs on a plain libvirt + ZFS host, for the Toledo Mobile Radio
 Association (W8HHF). It gives app admins (WIRES-X sysops, Winlink gateway
 operators and the like) Windows machines with the basic plumbing already done,
