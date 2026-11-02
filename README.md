@@ -122,7 +122,8 @@ debian/, packaging/arch/ packaging
 ## Packages
 
 Every push builds amd64 and arm64 packages for Ubuntu 24.04, Ubuntu 26.04 and
-Debian 13, and an x86_64 package for Arch. To publish a release, set the version in `debian/changelog`, commit, and
+Debian 13, and an x86_64 package for Arch, published as the `dev` prerelease, which
+the next push replaces. To publish a release, set the version in `debian/changelog`, commit, and
 push a tag `v<version>`: the packages and their `SHA256SUMS` appear as a GitHub
 release.
 

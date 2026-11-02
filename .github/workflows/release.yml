@@ -1,5 +1,6 @@
-# Builds packages on every push. A tag vX.Y.Z also publishes them as a GitHub
-# release; the tag must match the version at the top of debian/changelog.
+# Builds packages on every push and publishes them as the prerelease "dev", which
+# each push replaces. A tag vX.Y.Z publishes them as a real release; the tag must
+# match the version at the top of debian/changelog.
 #
 # arm64 packages build and pass the unit tests, but VMs can't run on them: winslot
 # runs x86_64 Windows guests under KVM (domain arch x86_64, vmx/svm, Windows x64
@@ -75,9 +76,9 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: [deb, arch]
     runs-on: ubuntu-24.04
+    concurrency: release
     permissions:
       contents: write
     steps:
@@ -92,4 +93,10 @@ jobs:
         run: |
           cd dist
           sha256sum * > SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" --generate-notes *
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            gh release create "$GITHUB_REF_NAME" --generate-notes *
+          else
+            gh release delete dev --cleanup-tag --yes || true
+            gh release create dev --prerelease --target "$GITHUB_SHA" --title "Development build" \
+              --notes "Built from $GITHUB_REF_NAME at $GITHUB_SHA. Untested beyond CI, and replaced by the next push." *
+          fi
