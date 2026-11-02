@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -286,10 +287,13 @@ func TestCreate(t *testing.T) {
 	if d.state != virt.Running || !d.autostart {
 		t.Errorf("state=%v autostart=%v", d.state, d.autostart)
 	}
-	for _, want := range []string{"<memory unit=\"MiB\">4096</memory>", `cores="2"`, `name="vmx"`, "wiresx.serial.log", `machine="pc-q35-8.2"`} {
+	for _, want := range []string{"<memory unit=\"MiB\">4096</memory>", `cores="2"`, ">IvyBridge-IBRS</model>", "wiresx.serial.log", `machine="pc-q35-8.2"`} {
 		if !strings.Contains(d.xml, want) {
 			t.Errorf("domain XML lacks %s", want)
 		}
+	}
+	if strings.Contains(d.xml, `name="vmx"`) {
+		t.Error("domain exposes vmx without --nested")
 	}
 	meta, err := slot.ParseMetadata(d.meta)
 	if err != nil || meta.Golden != "win11-20261011-0353" || meta.DiskBytes != 100<<30 || meta.Nested {
@@ -397,6 +401,44 @@ func TestUpdateKeepsIdentity(t *testing.T) {
 	}
 	if err := e.m.Update(ctx, "not-a-slot"); err == nil {
 		t.Error("updated a domain that is not a slot")
+	}
+}
+
+// A slot from before CPU models were pinned gets one, unless it is licensed:
+// then the change might need a reactivation, and must be deliberate.
+func TestUpdatePinsCPU(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	if _, err := e.m.Create(ctx, "wiresx", CreateOptions{DiskBytes: 80 << 30, MemoryMiB: 4096, VCPUs: 2}); err != nil {
+		t.Fatal(err)
+	}
+	d := e.virt.doms["wiresx"]
+	pinned := d.xml
+	old := regexp.MustCompile(`(?s)<cpu .*</cpu>`).ReplaceAllString(pinned, `<cpu mode="host-passthrough" check="none" migratable="on"></cpu>`)
+
+	d.xml = old
+	if err := e.m.Update(ctx, "wiresx"); err != nil {
+		t.Fatal(err)
+	}
+	if d.xml != pinned {
+		t.Errorf("not pinned:\n%s", d.xml)
+	}
+
+	d.xml = old
+	meta, err := e.m.Slot("wiresx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	meta.Licensed = &now
+	if err := e.m.setMetadata("wiresx", meta); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.m.Update(ctx, "wiresx"); err == nil {
+		t.Error("changed the CPU of a licensed slot")
+	}
+	if d.xml != old {
+		t.Error("licensed slot's definition rewritten")
 	}
 }
 

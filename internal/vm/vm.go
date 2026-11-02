@@ -4,8 +4,8 @@
 // A slot is a libvirt domain carrying winslot metadata. Its identity is never
 // changed and the domain is never undefined: decommissioning deletes only the
 // disk, recreating gives the same identity a fresh disk from the newest golden
-// image. Windows therefore always sees the same hardware, and a license
-// activated on the slot stays with it.
+// image. Windows therefore sees the same virtual hardware, which is what lets
+// a license activated on the slot stay with it.
 package vm
 
 import (
@@ -110,7 +110,7 @@ func (m *Manager) Create(ctx context.Context, name string, o CreateOptions) (str
 	if err != nil {
 		return "", err
 	}
-	m.logf("== slot %s: uuid %s, mac %s, disk serial %s, wwn %s, %s", name, id.UUID, id.MAC, id.DiskSerial, id.DiskWWN, id.Machine)
+	m.logf("== slot %s: uuid %s, mac %s, disk serial %s, wwn %s, %s, %s", name, id.UUID, id.MAC, id.DiskSerial, id.DiskWWN, id.Machine, id.CPU)
 
 	pw, err := m.freshDisk(ctx, name, goldenPath, golden, o.DiskBytes)
 	if err != nil {

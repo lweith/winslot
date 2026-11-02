@@ -22,18 +22,34 @@ mkdir -p "$CACHE"
 [ -e "$UBUNTU_ISO" ] || curl -fL --retry 3 -o "$UBUNTU_ISO" "$UBUNTU_URL"
 echo "$UBUNTU_SHA256  $UBUNTU_ISO" | sha256sum -c -
 
+# A stale payload should fail here, not on the server's first boot.
+echo "== check payload against payload.list"
+grep -v '^#' "$REPO/assets/packer/payload.list" | awk 'NF {print $2 "  " $1}' | (cd "$PAYLOAD" && sha256sum --quiet -c -)
+
 STAGE=$(mktemp -d); trap 'rm -rf "$STAGE"' EXIT
 echo "== stage installer contents in $STAGE"
 mkdir -p "$STAGE/winslot/media/payload" "$STAGE/winslot/secrets"
 
 # Autoinstall config from the site file. Admin SSH keys become a YAML list.
-export HOSTNAME ADMIN_USER TIMEZONE NIC ADDRESS GATEWAY DNS
+# A site with LAN DNS resolves through its own, with the router as the fallback
+# while that isn't up. Without it, the host's stub would only loop back to itself.
+NAMESERVERS=$DNS
+[ -z "${LAN_DHCP_START:-}" ] || NAMESERVERS="${ADDRESS%/*}, $DNS"
+export HOSTNAME ADMIN_USER TIMEZONE NIC ADDRESS GATEWAY NAMESERVERS
 export SSH_KEYS_YAML=$(grep -v '^#' "$REPO/sites/$SITE.admin-keys" | grep . | sed 's/^/          - "/; s/$/"/')
-envsubst '$HOSTNAME $ADMIN_USER $TIMEZONE $NIC $ADDRESS $GATEWAY $DNS $SSH_KEYS_YAML' \
+envsubst '$HOSTNAME $ADMIN_USER $TIMEZONE $NIC $ADDRESS $GATEWAY $NAMESERVERS $SSH_KEYS_YAML' \
   < "$REPO/install/user-data.in" > "$STAGE/autoinstall.yaml"     # installer reads /autoinstall.yaml from the media
 
-# The repository (with its git history) and which site this stick is for.
-rsync -a --exclude /build "$REPO/" "$STAGE/winslot/repo/"
+# The working tree, with only this site's files, and which site this stick is
+# for. The history comes from a fresh clone of the current branch, so backup
+# refs and unreachable objects stay behind.
+rsync -a --exclude /build --exclude /bin --exclude /.git \
+  --exclude /packaging/arch/src --exclude /packaging/arch/pkg --exclude '/packaging/arch/*.pkg.tar.zst' \
+  --include "/sites/$SITE.*" --exclude '/sites/*' \
+  "$REPO/" "$STAGE/winslot/repo/"
+git -c safe.directory='*' clone --quiet --no-local --single-branch --no-checkout "$REPO" "$STAGE/git-clone"
+mv "$STAGE/git-clone/.git" "$STAGE/winslot/repo/.git"
+git -C "$STAGE/winslot/repo" reset --quiet
 echo "$SITE" > "$STAGE/winslot/repo/install/SITE"
 cp "$WIN_ISO" "$STAGE/winslot/media/"
 cp "$PAYLOAD"/* "$STAGE/winslot/media/payload/"

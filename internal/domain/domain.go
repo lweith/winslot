@@ -46,14 +46,32 @@ func Build(s Spec) (*libvirtxml.Domain, error) {
 		return nil, fmt.Errorf("domain %s: VirtFeature must be vmx or svm, got %q", s.Name, s.VirtFeature)
 	}
 	id := s.Identity
+	if id.CPU == "" {
+		return nil, fmt.Errorf("domain %s: no CPU model in the identity", s.Name)
+	}
 
+	// A model the host can't run stops the VM from starting (check, fallback)
+	// rather than showing Windows a different CPU.
 	cpu := &libvirtxml.DomainCPU{
-		Mode: "host-passthrough", Check: "none", Migratable: "on",
+		Mode: "custom", Match: "exact", Check: "partial",
+		Model: &libvirtxml.DomainCPUModel{Fallback: "forbid", Value: id.CPU},
 		// One socket: Windows 11 Pro uses at most two.
 		Topology: &libvirtxml.DomainCPUTopology{Sockets: 1, Dies: 1, Cores: int(s.VCPUs), Threads: 1},
+		// Passed through only where the host has them: side-channel controls
+		// the guest kernel needs on affected hosts, and PCID, which keeps its
+		// Meltdown mitigation cheap. Zen 3 has no pcid or md-clear. Microcode
+		// updates change such bits on physical PCs too. Don't edit this list
+		// lightly: it reaches licensed slots at their next update.
+		Features: []libvirtxml.DomainCPUFeature{
+			{Policy: "optional", Name: "pcid"},
+			{Policy: "optional", Name: "md-clear"},
+			{Policy: "optional", Name: "stibp"},
+			{Policy: "optional", Name: "ssbd"},
+		},
 	}
-	if !s.Nested {
-		cpu.Features = []libvirtxml.DomainCPUFeature{{Policy: "disable", Name: s.VirtFeature}}
+	// The model has neither vmx nor svm; nested virtualization adds the host's.
+	if s.Nested {
+		cpu.Features = append(cpu.Features, libvirtxml.DomainCPUFeature{Policy: "require", Name: s.VirtFeature})
 	}
 
 	return &libvirtxml.Domain{

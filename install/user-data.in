@@ -17,9 +17,9 @@ autoinstall:
         set-name: ${NIC}
         addresses: [${ADDRESS}]
         routes: [{to: default, via: ${GATEWAY}, metric: 100}]
-        nameservers: {addresses: [${DNS}]}
+        nameservers: {addresses: [${NAMESERVERS}]}
         dhcp4: true                       # fallback address; its default route ranks below the static one
-        dhcp4-overrides: {route-metric: 200}
+        dhcp4-overrides: {route-metric: 200, use-dns: false}
 
   # One disk (the largest): ESP, /boot, LVM for the OS, and the rest left raw
   # as partition 4 for the ZFS pool, which install/bootstrap creates.

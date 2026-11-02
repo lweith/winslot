@@ -3,6 +3,7 @@ package vm
 import (
 	"context"
 	"encoding/base64"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -238,12 +239,39 @@ func TestReleaseMakesSlotDisposable(t *testing.T) {
 	}
 }
 
-func TestRestoreFromRecord(t *testing.T) {
+// A recorded address the new host's network can't give doesn't stop a restore.
+func TestRestoreAddressOutsideSubnet(t *testing.T) {
 	old := setup(t)
 	createSlot(t, old, "wiresx")
 	old.cert.activation = activation(t, 1, retailKey)
 	scan(t, old)
 	rec, _ := register(t, old).Find("wiresx")
+	r := *rec
+	r.Address = "192.0.2.5"
+
+	e := setup(t)
+	if err := e.m.Restore(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	addrs, err := e.m.Reservations()
+	if err != nil || addrs["wiresx"] == "" || addrs["wiresx"] == "192.0.2.5" {
+		t.Errorf("restored address = %v, %v", addrs, err)
+	}
+}
+
+func TestRestoreFromRecord(t *testing.T) {
+	old := setup(t)
+	createSlot(t, old, "wiresx")
+	old.cert.activation = activation(t, 1, retailKey)
+	scan(t, old)
+	// Moving the reservation updates the record, and the record carries it.
+	if _, err := old.m.ReserveIP("wiresx", netip.MustParseAddr("10.0.3.161")); err != nil {
+		t.Fatal(err)
+	}
+	rec, _ := register(t, old).Find("wiresx")
+	if rec.Address != "10.0.3.161" {
+		t.Errorf("recorded address = %q", rec.Address)
+	}
 	text, err := rec.Marshal()
 	if err != nil {
 		t.Fatal(err)
@@ -264,6 +292,9 @@ func TestRestoreFromRecord(t *testing.T) {
 	}
 	if got, ok := register(t, e).Find("wiresx"); !ok || got.Key != retailKey {
 		t.Error("record not added to the new host's register")
+	}
+	if addrs, err := e.m.Reservations(); err != nil || addrs["wiresx"] != "10.0.3.161" {
+		t.Errorf("restored address = %v, %v", addrs, err)
 	}
 	list, _ := e.m.List()
 	if len(list) != 1 || list[0].State != "decommissioned" {

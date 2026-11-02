@@ -44,7 +44,7 @@ source "qemu" "win11" {
   # Hardware: identical to what winslot gives each VM, so Sysprep /mode:vm holds.
   machine_type   = "pc-q35-8.2"
   accelerator    = "kvm"
-  cpu_model      = "host"
+  cpu_model      = "IvyBridge-IBRS"
   cpus           = 4
   sockets        = 1             # Windows 11 Pro uses at most 2 sockets: present 1 socket x 4 cores
   cores          = 4

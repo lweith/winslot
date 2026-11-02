@@ -19,11 +19,18 @@ have to be moved to it.
 winslot turns the hardware identity into a durable thing, a **license slot**:
 
 - A slot is a libvirt domain whose identity (UUID, MAC, disk serial/WWN,
-  `pc-q35-8.2`) is generated once and **never changed**.
+  `pc-q35-8.2`, CPU model) is generated once and **never changed**.
 - A slot's VM can be thrown away and rebuilt from a fresh golden image
   (`winslot vm decommission`, then `winslot vm recreate`). The new install sees
-  exactly the same hardware, so Microsoft recognises the machine and a digital
-  license reactivates by itself. Nothing is transferred.
+  the same virtual hardware, so Microsoft should recognise the machine and a
+  digital license reactivate by itself, with nothing transferred. **This has
+  not been tested yet:** no slot has been activated and rebuilt. Microsoft
+  doesn't publish what goes into the hardware ID, so keep the key and link the
+  license to a Microsoft account.
+- Slots present a fixed old CPU model (`IvyBridge-IBRS`), not the host's, so a
+  replacement server should look the same to Windows. Guests never see newer CPU
+  features. Moving a slot to a newer model, or between Intel and AMD (under KVM
+  the vendor string comes from the host), counts as a license move.
 - Decommissioned slots stay defined, with no disk. `winslot vm list` therefore
   is also the list of licensed machines the club can bring back, with their
   edition and sizing.

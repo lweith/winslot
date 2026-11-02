@@ -50,22 +50,27 @@ type Record struct {
 	DiskSerial string `toml:"disk_serial"`
 	DiskWWN    string `toml:"disk_wwn"`
 	Machine    string `toml:"machine"`
+	CPU        string `toml:"cpu"`
 
 	// Sizing, to recreate the VM as it was.
 	VCPUs     uint   `toml:"vcpus"`
 	MemoryMiB uint   `toml:"memory_mib"`
 	DiskBytes uint64 `toml:"disk_bytes"`
 	Nested    bool   `toml:"nested,omitempty"`
+
+	// Address is the slot's reserved address, to keep it on a rebuilt host. Not
+	// part of the identity: it can change.
+	Address string `toml:"address,omitempty"`
 }
 
 // Identity returns the record's slot identity.
 func (r Record) Identity() slot.Identity {
-	return slot.Identity{UUID: r.UUID, MAC: r.MAC, DiskSerial: r.DiskSerial, DiskWWN: r.DiskWWN, Machine: r.Machine}
+	return slot.Identity{UUID: r.UUID, MAC: r.MAC, DiskSerial: r.DiskSerial, DiskWWN: r.DiskWWN, Machine: r.Machine, CPU: r.CPU}
 }
 
 // SetIdentity copies id into the record.
 func (r *Record) SetIdentity(id slot.Identity) {
-	r.UUID, r.MAC, r.DiskSerial, r.DiskWWN, r.Machine = id.UUID, id.MAC, id.DiskSerial, id.DiskWWN, id.Machine
+	r.UUID, r.MAC, r.DiskSerial, r.DiskWWN, r.Machine, r.CPU = id.UUID, id.MAC, id.DiskSerial, id.DiskWWN, id.Machine, id.CPU
 }
 
 // Validate checks a record is complete and self-consistent.
@@ -74,7 +79,7 @@ func (r Record) Validate() error {
 		return err
 	}
 	id := r.Identity()
-	if id.UUID == "" || id.MAC == "" || id.DiskSerial == "" || id.DiskWWN == "" || id.Machine == "" {
+	if id.UUID == "" || id.MAC == "" || id.DiskSerial == "" || id.DiskWWN == "" || id.Machine == "" || id.CPU == "" {
 		return fmt.Errorf("license record %s: identity incomplete", r.Slot)
 	}
 	if r.VCPUs == 0 || r.MemoryMiB == 0 || r.DiskBytes == 0 {

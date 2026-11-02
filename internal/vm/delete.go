@@ -52,8 +52,8 @@ func (m *Manager) Delete(ctx context.Context, name string) error {
 
 // Restore defines a slot from a license record (the register, or the QR
 // code on its printed sheet) with exactly the recorded identity and no disk.
-// "winslot vm recreate NAME" then installs it; Windows reactivates because it
-// sees the same hardware.
+// "winslot vm recreate NAME" then installs it; Windows should reactivate
+// because it sees the same virtual hardware.
 func (m *Manager) Restore(ctx context.Context, rec license.Record) error {
 	if err := rec.Validate(); err != nil {
 		return err
@@ -114,8 +114,17 @@ func (m *Manager) Restore(ctx context.Context, rec license.Record) error {
 			return err
 		}
 	}
-	if _, err := m.ReserveIP(name, netip.Addr{}); err != nil {
-		return err
+	// The recorded address, if this host's network can give it; a new host may
+	// have a different subnet.
+	want, _ := netip.ParseAddr(rec.Address) // zero if absent: any free address
+	if _, err := m.ReserveIP(name, want); err != nil {
+		if !want.IsValid() {
+			return err
+		}
+		m.logf("can't keep address %s: %v", want, err)
+		if _, err := m.ReserveIP(name, netip.Addr{}); err != nil {
+			return err
+		}
 	}
 	m.logf("restored slot %s (uuid %s); install it: winslot vm recreate %s", name, rec.UUID, name)
 	return nil

@@ -12,6 +12,30 @@ login prompt shows the SSH host key fingerprints and a break-glass root
 password (root never logs in over SSH). Day-to-day login is `tmra-admin` with
 the site's keys, then `sudo`.
 
+**Rebuilding a site's host** with the same stick recipe needs a few things in
+hand first:
+
+- `winslot payload fetch`: `make installer` refuses a payload that doesn't match
+  `payload.list`.
+- A host CA backup, passed as `CA_BACKUP=`. Without it the site gets a new CA, and
+  every admin must replace their trust line. Make it on the old host, on its
+  console, and keep it and its passphrase off the stick:
+
+  ```
+  sudo apt install age
+  sudo tar -C /etc/winslot -cf /root/host-ca.tar host_ca host_ca.pub mgmt_key mgmt_key.pub
+  sudo age -p -o host-ca.tar.age /root/host-ca.tar
+  sudo rm /root/host-ca.tar
+  ```
+
+  With a backup on the stick, the bootstrap stops before installing winslot, and
+  the console says how to restore it and carry on. That step isn't unattended.
+- `sites/<site>.lan-hosts` and `.lan-records`, copied from `/etc/winslot/lan-hosts`
+  and `lan-records` if they've changed.
+- Each licensed slot's sheet or `license show` output, for `winslot vm restore` (see
+  4a). It keeps the slot's address. USB and PCI passthrough devices are not kept:
+  attach them again.
+
 **By hand** on Ubuntu 24.04: install the package (`apt install ./winslot_*.deb`),
 then:
 
@@ -75,8 +99,8 @@ winslot vm reserve wiresx --ip 10.0.3.161
 winslot vm decommission wiresx
 ```
 
-**Recreate** (same slot, fresh disk from the newest golden image; Windows
-reactivates by itself):
+**Recreate** (same slot, fresh disk from the newest golden image; Windows should
+reactivate by itself, untested so far):
 
 ```
 winslot vm recreate wiresx [--disk 160G]
@@ -91,6 +115,10 @@ kept; takes effect at the next cold boot, `recreate` does it automatically):
 ```
 winslot vm update wiresx
 ```
+
+It also pins the CPU model of an unlicensed slot from before 0.2.3, and refuses
+if the slot is already licensed. Passthrough devices added with `virsh` aren't
+kept: attach them again.
 
 **Delete** (a slot that was never activated: test VMs, mistakes):
 
@@ -160,8 +188,11 @@ winslot vm restore wiresx.toml
 winslot vm recreate wiresx
 ```
 
-Windows sees the same hardware and reactivates from its digital license; if
-not, enter the key from the sheet.
+Windows should see the same virtual hardware and reactivate from its digital
+license (untested so far); if not, enter the key from the sheet. A new host must
+be able to run the slot's CPU model, or the VM refuses to start: check with
+`virsh domcapabilities --machine pc-q35-8.2`. An Intel-to-AMD move changes the
+CPU vendor Windows sees, so expect to reactivate.
 
 ## 5. Admin keys
 
@@ -200,8 +231,57 @@ Prometheus job finds them all:
     - names: ['_windows-exporter._tcp.vms.example.org']
 ```
 
-Prometheus's resolver must resolve the zone: the host's resolver answers for it
-on the host's uplink address.
+Prometheus's resolver must resolve the zone: the host answers for it on its
+static uplink address (see 7a).
+
+## 7a. Site DNS and LAN DHCP
+
+The host answers DNS on its static uplink address. Off-site clients come in over
+WireGuard and send only the club's internal zone there, not all their lookups:
+
+| Client | Setting |
+|---|---|
+| Linux with `systemd-resolved` | `DNS=<address>` and `Domains=~<internal zone>` on the WireGuard link |
+| Linux with dnsmasq or OpenWrt | `server=/<internal zone>/<address>` |
+| Windows | `Add-DnsClientNrptRule -Namespace ".<internal zone>" -NameServers "<address>"` |
+| macOS | File `/etc/resolver/<internal zone>` containing `nameserver <address>` |
+
+Browsers using DNS over HTTPS skip all of this and get the public wildcard
+instead of the VM. Turn it off by policy. For Firefox on Linux, in
+`/etc/firefox/policies/policies.json`:
+`{"policies":{"DNSOverHTTPS":{"Enabled":false,"Locked":true}}}`
+
+A site with `LAN_DHCP_START` set also runs `winslot-lan-dns`, a dnsmasq on the
+uplink, separate from libvirt's. It leases the pool, registers devices as
+`<name>.<LAN_ZONE>`, forwards the VM zone to libvirt's dnsmasq, and sends other
+peers' zones to `PEER_ZONES`.
+
+| File | Holds | Format |
+|---|---|---|
+| `/etc/winslot/lan-dns.conf` | Service settings | dnsmasq |
+| `/etc/winslot/lan-hosts` | DHCP reservations | `mac,address,name` |
+| `/etc/winslot/lan-records` | Names of statically addressed devices | hosts file |
+
+After changing `lan-hosts` or `lan-records`: `systemctl reload winslot-lan-dns`.
+Copy changes to `sites/<site>.lan-hosts` and `.lan-records` too, or a rebuild
+loses them. A rebuild restores those files, and `LAN_DHCP_AUTHORITATIVE=yes` in the
+site file adds `dhcp-authoritative`.
+
+**Router as last resort.** DHCP has no priority, so the router must delay its
+replies. It keeps a small pool that doesn't overlap the server's, and ignores a
+client until its `secs` field reaches a few seconds (EdgeOS, in the LAN's shared
+network: `shared-network-parameters "min-secs 5;"`). A client that leaves `secs`
+at 0 never gets an answer from a delayed router, so it has no fallback: give it
+a static address if it must survive the host being down.
+
+**Moving a LAN over.** Reserve every current lease at its current address first,
+and list those names in `lan-records` too: a device the router has a static
+mapping for keeps renewing with the router, and dnsmasq only publishes names for
+its own leases. Then add `dhcp-authoritative` to `lan-dns.conf` and move the
+router's pool. Clients with old leases rebind by broadcast, and an authoritative
+dnsmasq confirms their reserved address; without it they lose the address when
+the lease expires. It also NAKs any address it doesn't know, so the reservations
+must be complete first.
 
 Activation: images built with winslot 0.2.0 or later export
 `windows_license_status{state="genuine"}` (1 when Windows' genuine check

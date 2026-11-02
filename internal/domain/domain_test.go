@@ -19,7 +19,7 @@ func spec() Spec {
 		Description: "Windows 11 Pro license slot.",
 		Identity: slot.Identity{
 			UUID: "84baff84-19e0-4bc7-bc42-7f5a4e81dc60", MAC: "52:54:00:09:a6:7b",
-			DiskSerial: "WSFB990FA6376A67", DiskWWN: "5525400f628e4351", Machine: slot.Machine,
+			DiskSerial: "WSFB990FA6376A67", DiskWWN: "5525400f628e4351", Machine: slot.Machine, CPU: slot.CPU,
 		},
 		MemoryMiB:   8192,
 		VCPUs:       4,
@@ -79,7 +79,7 @@ func TestBuildCarriesIdentity(t *testing.T) {
 		"<serial>WSFB990FA6376A67</serial>",
 		"<wwn>5525400f628e4351</wwn>",
 		`machine="pc-q35-8.2"`,
-		`<feature policy="disable" name="vmx">`,
+		`<model fallback="forbid">IvyBridge-IBRS</model>`,
 		`<parameter name="CTRL_IP_LEARNING" value="dhcp">`,
 		`sockets="1"`,
 	} {
@@ -95,6 +95,7 @@ func TestBuildRejects(t *testing.T) {
 		"no disk":      func(s *Spec) { s.DiskPath = "" },
 		"no vcpus":     func(s *Spec) { s.VCPUs = 0 },
 		"virt feature": func(s *Spec) { s.VirtFeature = "" },
+		"no cpu model": func(s *Spec) { s.Identity.CPU = "" },
 	} {
 		s := spec()
 		mutate(&s)

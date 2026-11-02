@@ -9,7 +9,7 @@ Homepage: https://w8hhf.org/
 Package: winslot
 Architecture: amd64
 Depends: ${misc:Depends}, libvirt-daemon-system, libvirt-clients, qemu-system-x86, qemu-utils,
- ovmf, swtpm, swtpm-tools, zfsutils-linux, xorriso, 7zip
+ ovmf, swtpm, swtpm-tools, zfsutils-linux, xorriso, 7zip, dnsmasq-base
 Recommends: packer, frr
 Description: licensed Windows VM slots on libvirt
  Builds golden Windows images with Packer and runs Windows VMs as "license

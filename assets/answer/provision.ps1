@@ -83,6 +83,9 @@ SafeFileTypes = audio,video,webpage
 
   Log "  sysinternals ok ($((Get-ChildItem $si -Filter *.exe).Count) exes)"
 
+  # PowerShell comes from the image, not from its own update nag.
+  [Environment]::SetEnvironmentVariable('POWERSHELL_UPDATECHECK', 'Off', 'Machine')
+
   # --- monitoring ------------------------------------------------------------
   # The defaults plus license (Windows activation state). Listed out: msiexec
   # would expand a "[defaults]" placeholder as a property reference.

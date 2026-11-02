@@ -23,9 +23,13 @@
     </hyperv>
     <smm state="on"></smm>
   </features>
-  <cpu mode="host-passthrough" check="none" migratable="on">
+  <cpu match="exact" mode="custom" check="partial">
+    <model fallback="forbid">IvyBridge-IBRS</model>
     <topology sockets="1" dies="1" cores="4" threads="1"></topology>
-    <feature policy="disable" name="vmx"></feature>
+    <feature policy="optional" name="pcid"></feature>
+    <feature policy="optional" name="md-clear"></feature>
+    <feature policy="optional" name="stibp"></feature>
+    <feature policy="optional" name="ssbd"></feature>
   </cpu>
   <clock offset="localtime">
     <timer name="rtc" tickpolicy="catchup"></timer>

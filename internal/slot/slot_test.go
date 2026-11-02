@@ -50,7 +50,7 @@ func TestNewIdentityDeterministic(t *testing.T) {
 	}
 	want := Identity{
 		UUID: "ffffffff-ffff-4fff-bfff-ffffffffffff", MAC: "52:54:00:ff:ff:ff",
-		DiskSerial: "WSFFFFFFFFFFFFFF", DiskWWN: "5525400fffffffff", Machine: Machine,
+		DiskSerial: "WSFFFFFFFFFFFFFF", DiskWWN: "5525400fffffffff", Machine: Machine, CPU: CPU,
 	}
 	if id != want {
 		t.Errorf("got %+v\nwant %+v", id, want)

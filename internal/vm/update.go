@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"winslot/internal/domain"
+	"winslot/internal/slot"
 )
 
 // Title is what virt-manager shows for a slot in place of its name, so it
@@ -29,6 +30,14 @@ func (m *Manager) Update(ctx context.Context, name string) error {
 	cur, err := domain.Parse(x)
 	if err != nil {
 		return err
+	}
+	// A slot from before CPU models were pinned ran on the host's CPU.
+	if cur.Identity.CPU == "" {
+		if meta.Licensed != nil {
+			return fmt.Errorf("update %s: licensed on the host's CPU with no pinned model; pinning one may need a reactivation, so change it by hand", name)
+		}
+		cur.Identity.CPU = slot.CPU
+		m.logf("%s: pinning CPU model %s", name, slot.CPU)
 	}
 	d, err := domain.Build(domain.Spec{
 		Name:        name,

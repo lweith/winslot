@@ -33,6 +33,10 @@ func Parse(x string) (Current, error) {
 	if d.OS != nil && d.OS.Type != nil {
 		c.Identity.Machine = d.OS.Type.Machine
 	}
+	// Empty for a slot from before CPU models were pinned (host-passthrough).
+	if d.CPU != nil && d.CPU.Mode == "custom" && d.CPU.Model != nil {
+		c.Identity.CPU = d.CPU.Model.Value
+	}
 	if d.Memory != nil {
 		c.MemoryMiB = toMiB(d.Memory.Value, d.Memory.Unit)
 	}

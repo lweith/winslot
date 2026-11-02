@@ -65,6 +65,7 @@ func Render(r license.Record, printed time.Time, version string) ([]byte, error)
 		{"Disk serial", r.DiskSerial},
 		{"Disk WWN", r.DiskWWN},
 		{"Machine type", r.Machine},
+		{"CPU model", r.CPU},
 		{"Size", fmt.Sprintf("%d vCPUs (1 socket), %d MiB memory, %d GiB disk%s", r.VCPUs, r.MemoryMiB, r.DiskBytes>>30, nestedText(r.Nested))},
 	}
 	y = table(&p, left, y+22, rows)
@@ -113,7 +114,7 @@ func table(p *pdf.Page, x, y float64, rows [][2]string) float64 {
 func recovery(name string) []string {
 	return []string{
 		"Same host, disk lost or replaced:   winslot vm recreate " + name,
-		"Windows sees the same hardware and reactivates by itself (digital license).",
+		"Windows should see the same virtual hardware and reactivate by itself.",
 		"",
 		"New host (winslot installed, golden image built):",
 		"  1. Scan the QR code into a text file, e.g. " + name + ".toml",

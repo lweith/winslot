@@ -107,7 +107,8 @@ func newVMRestoreCmd(a *app) *cobra.Command {
 		Short: "Define a licensed slot from its license record (QR code text or license show output)",
 		Long: `Defines a slot with exactly the identity in a license record, without a disk,
 and adds the record to this host's register. Then install it with
-"winslot vm recreate NAME": Windows sees the same hardware and reactivates.
+"winslot vm recreate NAME": Windows should see the same virtual hardware and
+reactivate; if not, enter the key from the sheet.
 FILE is the text of the QR code on the slot's sheet, or "winslot license show
 NAME" output from the old host; "-" reads standard input.`,
 		Example: "  winslot vm restore wiresx.toml && winslot vm recreate wiresx",
@@ -249,8 +250,8 @@ func newVMRecreateCmd(a *app) *cobra.Command {
 		Use:   "recreate NAME",
 		Short: "Give a decommissioned slot a fresh disk from the newest golden image",
 		Long: `Recreates a decommissioned slot's VM under its unchanged identity, on a fresh
-copy of the newest golden image. Windows sees the same hardware, so a license
-activated on the slot reactivates by itself.`,
+copy of the newest golden image. Windows sees the same virtual hardware, so a
+license activated on the slot should reactivate by itself.`,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: a.slotNames,
 		RunE: func(cmd *cobra.Command, args []string) error {

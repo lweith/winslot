@@ -289,6 +289,9 @@ func (m *Manager) scanOne(ctx context.Context, reg *license.Register, name, host
 	if err != nil {
 		return res("error", "%v", err)
 	}
+	if cur.Identity.CPU == "" {
+		return res("error", "activated with no pinned CPU model, so not recorded: run winslot vm update %s, shut it down, start it, and check that it is still activated", name)
+	}
 	meta, _ := m.Slot(name)
 	rec2 := license.Record{
 		Slot: name, Edition: a.Edition, Channel: a.Channel, Partial: a.Partial,
@@ -296,6 +299,9 @@ func (m *Manager) scanOne(ctx context.Context, reg *license.Register, name, host
 		VCPUs: cur.VCPUs, MemoryMiB: cur.MemoryMiB, DiskBytes: meta.DiskBytes, Nested: meta.Nested,
 	}
 	rec2.SetIdentity(cur.Identity)
+	if addrs, err := m.Reservations(); err == nil {
+		rec2.Address = addrs[name]
+	}
 	detail := "activated by digital license; no key on the VM. If you have its key: winslot license record " + name + " --key KEY"
 	if !winkey.Matches(winkey.GenericPro, a.Partial) {
 		if k, err := winkey.Decode(a.DPID); err == nil && winkey.Matches(k, a.Partial) {

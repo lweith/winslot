@@ -61,7 +61,7 @@ if step packages; then
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
     qemu-kvm libvirt-daemon-system libvirt-clients ovmf swtpm swtpm-tools \
-    qemu-utils xorriso 7zip frr packer \
+    qemu-utils xorriso 7zip frr packer age \
     golang-1.24-go debhelper devscripts
   usermod -aG libvirt "$ADMIN_USER"
   done_ packages
@@ -114,10 +114,13 @@ EOF
   chmod 755 /etc/libvirt/hooks/network
   # libvirt's dnsmasq only answers the VM bridge. The host's resolver (which
   # routes the zone to it) also answers on the uplink, so Prometheus and
-  # admins elsewhere can resolve <vm>.$ZONE and the SRV discovery record.
-  install -d /etc/systemd/resolved.conf.d
-  printf '[Resolve]\nDNSStubListenerExtra=%s\n' "${ADDRESS%/*}" > /etc/systemd/resolved.conf.d/winslot-lan.conf
-  systemctl restart systemd-resolved
+  # admins elsewhere can resolve <vm>.$ZONE and the SRV discovery record. A site
+  # with a LAN pool answers there with winslot-lan-dns instead (step lan-dns).
+  if [ -z "${LAN_DHCP_START:-}" ]; then
+    install -d /etc/systemd/resolved.conf.d
+    printf '[Resolve]\nDNSStubListenerExtra=%s\n' "${ADDRESS%/*}" > /etc/systemd/resolved.conf.d/winslot-lan.conf
+    systemctl restart systemd-resolved
+  fi
   systemctl restart libvirtd
   [ "$(virsh net-info default | awk '/^Active/{print $2}')" = yes ] || virsh net-start default
   done_ vm-network
@@ -146,23 +149,72 @@ EOF
   done_ ospf
 fi
 
+if step host-ca; then
+  # A rebuilt site keeps its host CA, so admins' trust line stays valid. Its
+  # passphrase isn't on the stick, so stop here for a person to enter it, rather
+  # than carry on and create a new CA. No backup on the stick: new CA.
+  BACKUP=$SRC/secrets/host-ca.tar.age
+  if [ -e "$BACKUP" ] && [ ! -e /etc/winslot/host_ca ]; then
+    echo "!! Host CA backup found. To restore it, log in on the console and run:"
+    echo "!!   sudo install -d /etc/winslot"
+    echo "!!   sudo age -d -o /root/host-ca.tar $BACKUP"
+    echo "!!   sudo tar -xf /root/host-ca.tar -C /etc/winslot"
+    echo "!!   sudo rm /root/host-ca.tar"
+    echo "!!   sudo systemctl start winslot-bootstrap"
+    echo "!! To make a new CA instead (admins must replace their trust line):"
+    echo "!!   sudo rm $BACKUP && sudo systemctl start winslot-bootstrap"
+    exit 1
+  fi
+  done_ host-ca
+fi
+
 if step winslot; then
   # Build and install the winslot package from this checkout.
   rm -rf /tmp/winslot-build && cp -a "$REPO" /tmp/winslot-build
   (cd /tmp/winslot-build && dpkg-buildpackage -b -us -uc)
   # Site settings and admin keys go in place first: the package's postinst runs
-  # `winslot host init`, which reads the config and adds the management key
-  # to the admin list.
+  # `winslot host init`, which keeps a restored CA and management key, reads the
+  # config, and adds the management key to the admin list.
   install -d /etc/winslot
   printf '[windows]\niso = "%s"\ntimezone = "%s"\n\n[network]\nzone = "%s"\ngateway = "%s"\n' \
     "$(ls /var/lib/libvirt/iso/*.iso | head -1)" "$WINDOWS_TIMEZONE" "$ZONE" "$VM_NET_ADDRESS" \
     > /etc/winslot/winslot.toml
   cp "$REPO/sites/$SITE.admin-keys" /etc/winslot/authorized_keys          # same list as the host admin account
-  # A rebuilt site keeps its host CA (admins' trust line stays valid) if the
-  # CA and management key were restored into /etc/winslot before this step;
-  # otherwise host init creates new ones.
   DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold /tmp/winslot_*.deb
   done_ winslot
+fi
+
+if step lan-dns; then
+  # Optional: DHCP for the uplink LAN and DNS for its devices, as $LAN_ZONE. VM
+  # names still come from libvirt's dnsmasq. Not authoritative unless the site
+  # says so, so a new site can share the LAN with the router's DHCP while old
+  # leases age out (see RUNBOOK).
+  if [ -n "${LAN_DHCP_START:-}" ]; then
+    {
+      printf 'user=dnsmasq\ninterface=%s\nbind-dynamic\nexcept-interface=lo\n' "$NIC"
+      printf 'no-resolv\nno-hosts\ndomain-needed\nexpand-hosts\nlocal-ttl=300\nmin-cache-ttl=60\n'
+      printf 'domain=%s\nlocal=/%s/\nserver=/%s/%s\n' "$LAN_ZONE" "$LAN_ZONE" "$ZONE" "$VM_NET_ADDRESS"
+      for upstream in ${LAN_DNS_UPSTREAM:-$DNS}; do printf 'server=%s\n' "$upstream"; done
+      for peer in ${PEER_ZONES:-}; do printf 'server=/%s/%s\n' "${peer%%=*}" "${peer#*=}"; done
+      printf 'addn-hosts=/etc/winslot/lan-records\ndhcp-hostsfile=/etc/winslot/lan-hosts\n'
+      printf 'dhcp-leasefile=/var/lib/misc/winslot-lan.leases\n'
+      [ "${LAN_DHCP_AUTHORITATIVE:-no}" != yes ] || printf 'dhcp-authoritative\n'
+      printf 'dhcp-range=%s,%s,24h\n' "$LAN_DHCP_START" "$LAN_DHCP_END"
+      printf 'dhcp-option=option:router,%s\ndhcp-option=option:dns-server,%s\n' "$GATEWAY" "${ADDRESS%/*}"
+    } > /etc/winslot/lan-dns.conf
+    for f in lan-hosts lan-records; do
+      if [ -e "$REPO/sites/$SITE.$f" ]; then
+        install -m 644 "$REPO/sites/$SITE.$f" "/etc/winslot/$f"
+      else
+        touch "/etc/winslot/$f"
+      fi
+    done
+    systemctl enable --now winslot-lan-dns
+    # The host's first nameserver is this service. resolved moved to the router
+    # while it wasn't up yet; a restart sends it back to the first one.
+    systemctl restart systemd-resolved
+  fi
+  done_ lan-dns
 fi
 
 if step golden-image; then

@@ -3,6 +3,15 @@ winslot (0.2.3) noble; urgency=medium
   * The package no longer ships /etc/winslot/winslot.toml. The example is
     /usr/share/doc/winslot/winslot.toml.example; an existing config stays.
   * Site settings are no longer in the repository, apart from an example.
+  * winslot-lan-dns: optional DHCP for the uplink LAN and DNS for its devices,
+    with the VM zone forwarded to libvirt's dnsmasq.
+  * Slots and golden images present a fixed CPU model, IvyBridge-IBRS, recorded
+    in the slot's identity and license record, not the host's CPU. vm update
+    pins it on an unlicensed older slot and refuses a licensed one.
+  * Golden image: PowerShell 7.6.9, with its update check off.
+  * Rebuilds: the installer restores LAN reservations and names from the site's
+    files and stops for the host CA backup's passphrase. License records keep the
+    slot's address, and vm restore reuses it.
 
  -- TMRA tech committee <tech@w8hhf.org>  Sun, 01 Nov 2026 14:00:00 -0500
 

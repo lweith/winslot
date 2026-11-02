@@ -25,6 +25,14 @@ import (
 // thing on any host with QEMU >= 8.2, now and after upgrades.
 const Machine = "pc-q35-8.2"
 
+// CPU is the CPU model every new slot presents, in place of the host's. It is
+// the newest model both a Xeon E3 v2 and a Zen 3 can run, and old models keep
+// working on newer hosts, so a replacement server shows the guest the same
+// family, model, stepping, name and features. A slot's model never changes by
+// itself: moving to a newer one is a deliberate license move. Under KVM the
+// vendor string still comes from the host, so Intel to AMD is such a move too.
+const CPU = "IvyBridge-IBRS"
+
 // MetadataNamespace is the XML namespace of winslot's <slot> element in
 // libvirt domain metadata.
 const MetadataNamespace = "https://w8hhf.org/xmlns/winslot"
@@ -47,6 +55,7 @@ type Identity struct {
 	DiskSerial string // SCSI disk serial
 	DiskWWN    string // SCSI disk WWN (NAA 5), 16 hex digits
 	Machine    string // QEMU machine type
+	CPU        string // CPU model the guest sees
 }
 
 // NewIdentity generates a fresh identity from crypto/rand.
@@ -67,6 +76,7 @@ func newIdentity(r io.Reader) (Identity, error) {
 		// NAA 5 (IEEE registered), then 36 random bits of vendor-specific ID.
 		DiskWWN: "5525400" + hex.EncodeToString(wwn)[:9],
 		Machine: Machine,
+		CPU:     CPU,
 	}, nil
 }
 

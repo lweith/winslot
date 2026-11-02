@@ -1,0 +1,15 @@
+[Unit]
+Description=winslot LAN DHCP and DNS (dnsmasq on the uplink; libvirt's serves the VM network)
+Documentation=file:///usr/share/doc/winslot/RUNBOOK.md
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/winslot/lan-dns.conf
+
+[Service]
+ExecStart=/usr/sbin/dnsmasq --keep-in-foreground --log-facility=- --conf-file=/etc/winslot/lan-dns.conf
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

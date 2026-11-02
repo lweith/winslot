@@ -19,7 +19,7 @@ func TestRender(t *testing.T) {
 		Activated: time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC), Host: "vmhost",
 		Purchase: "Microsoft Store order 1234567890, TMRA treasurer, 2026-10-01",
 		UUID:     "fa8b8620-313f-4499-b70c-92b1d6842d3a", MAC: "52:54:00:12:34:56",
-		DiskSerial: "WS0123456789ABCD", DiskWWN: "5525400123456789", Machine: "pc-q35-8.2",
+		DiskSerial: "WS0123456789ABCD", DiskWWN: "5525400123456789", Machine: "pc-q35-8.2", CPU: "IvyBridge-IBRS",
 		VCPUs: 4, MemoryMiB: 8192, DiskBytes: 80 << 30,
 	}
 	doc, err := Render(r, time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC), "test")

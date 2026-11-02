@@ -22,11 +22,12 @@
                                     RUNBOOK.md explain everything. READ THEM.
     /usr/share/doc/winslot/         The same books, as installed.
     /var/log/winslot-bootstrap.log  The chronicle of this server's creation.
-    /etc/winslot/                   The Vault: winslot.conf (site settings),
+    /etc/winslot/                   The Vault: winslot.toml (site settings),
                                     authorized_keys (who may enter every VM),
                                     host_ca (THE HOST CA: guard it), mgmt_key,
                                     known_hosts (VM keys learned at their birth),
-                                    console-root.toml (the password that glowed).
+                                    console-root.toml (the password that glowed),
+                                    lan-dns.conf, lan-hosts, lan-records (the LAN).
     zfs list -r tank                The Hoard: golden images, VM disks.
     virsh list --all                The Inhabitants, living and dormant.
     vtysh -c 'show ip ospf neighbor'  The Roads to other sites (OSPF).
@@ -44,8 +45,8 @@
 
   > READ INSCRIPTION ON WALL
 
-    I.   A Windows VM's identity (UUID, MAC, disk serial/WWN, machine type) is
-         what its license is bound to. NEVER `virsh undefine` a winslot VM.
+    I.   A Windows VM's identity (UUID, MAC, disk serial/WWN, machine type, CPU
+         model) is what its license is bound to. NEVER `virsh undefine` a winslot VM.
          Decommission it instead. The identity is the license.
     II.  Golden images are built, never patched. Need newer Windows or newer
          software? Build a new image, recreate the VMs onto it.

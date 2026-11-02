@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"winslot/internal/domain"
+	"winslot/internal/license"
 )
 
 // Static addresses are DHCP reservations in the libvirt network: MAC to
@@ -205,7 +206,28 @@ func (m *Manager) ReserveIP(name string, want netip.Addr) (netip.Addr, error) {
 		return netip.Addr{}, fmt.Errorf("reserving %s for %s: %w", addr, name, err)
 	}
 	m.logf("== address: %s is reserved for %s", addr, name)
+	if err := m.recordAddress(name, addr); err != nil {
+		return netip.Addr{}, err
+	}
 	return addr, nil
+}
+
+// recordAddress keeps a licensed slot's record in step with its reservation.
+func (m *Manager) recordAddress(name string, addr netip.Addr) error {
+	reg, err := license.Load(m.RegisterPath())
+	if err != nil {
+		return err
+	}
+	rec, ok := reg.Find(name)
+	if !ok || rec.Address == addr.String() {
+		return nil
+	}
+	rec.Address = addr.String()
+	if err := reg.Save(m.RegisterPath()); err != nil {
+		return err
+	}
+	m.logf("recorded %s for %s in the license register; its printed sheet is out of date: winslot license print %s", addr, name, name)
+	return nil
 }
 
 // ReleaseIP removes slot name's reservation (absent is fine).
