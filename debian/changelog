@@ -12,6 +12,7 @@ winslot (0.2.3) noble; urgency=medium
   * Rebuilds: the installer restores LAN reservations and names from the site's
     files and stops for the host CA backup's passphrase. License records keep the
     slot's address, and vm restore reuses it.
+  * arm64 packages. VMs still need an x86_64 host.
 
  -- TMRA tech committee <tech@w8hhf.org>  Sun, 01 Nov 2026 14:00:00 -0500
 

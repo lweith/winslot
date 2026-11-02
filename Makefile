@@ -6,7 +6,7 @@
 #   make cover        coverage report (bin/coverage.html)
 #   make integration  build the libvirt integration test binary; run it as root
 #                     on a winslot host: sudo bin/virt.itest -test.v
-#   make deb          ../winslot_<version>_amd64.deb (debian/rules calls build/install)
+#   make deb          ../winslot_<version>_<arch>.deb (debian/rules calls build/install)
 #   make installer SITE=pnc WIN_ISO=...   server installer ISO (install/make-installer)
 
 VERSION     ?= $(shell dpkg-parsechangelog -S Version 2>/dev/null || echo dev)

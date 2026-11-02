@@ -7,7 +7,7 @@ Standards-Version: 4.6.2
 Homepage: https://w8hhf.org/
 
 Package: winslot
-Architecture: amd64
+Architecture: amd64 arm64
 Depends: ${misc:Depends}, libvirt-daemon-system, libvirt-clients, qemu-system-x86, qemu-utils,
  ovmf, swtpm, swtpm-tools, zfsutils-linux, xorriso, 7zip, dnsmasq-base
 Recommends: packer, frr

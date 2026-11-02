@@ -119,11 +119,13 @@ debian/, packaging/arch/ packaging
 
 ## Packages
 
-Every push builds x86_64 packages for Ubuntu 24.04, Ubuntu 26.04, Debian 13 and
-Arch. To publish a release, set the version in `debian/changelog`, commit, and
+Every push builds amd64 and arm64 packages for Ubuntu 24.04, Ubuntu 26.04 and
+Debian 13, and an x86_64 package for Arch. To publish a release, set the version in `debian/changelog`, commit, and
 push a tag `v<version>`: the packages and their `SHA256SUMS` appear as a GitHub
 release.
 
+- **arm64** packages can't run VMs yet: slots are x86_64 Windows guests under KVM,
+  which needs an x86_64 host.
 - **Debian** has `zfsutils-linux` in `contrib`, which must be enabled.
 - **Arch** ships no UEFI firmware with Microsoft's Secure Boot keys enrolled, so
   `winslot image build` and VMs fail there until such firmware is installed.
